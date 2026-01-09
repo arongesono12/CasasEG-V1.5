@@ -1,0 +1,5 @@
+{
+  "name": "CasasEG",
+  "description": "Plataforma de gestión de alquileres con roles para clientes, propietarios y administradores, incluyendo notificaciones de disponibilidad y asistencia por IA.",
+  "requestFramePermissions": []
+}
