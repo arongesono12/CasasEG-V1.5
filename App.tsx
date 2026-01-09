@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Property, UserRole, Notification, Message } from './types';
 import { Icons } from './components/Icons';
-import { generatePropertyDescription } from './services/geminiService';
 
 // --- MOCK DATA ---
 const INITIAL_USERS: User[] = [
@@ -294,6 +293,15 @@ interface ConversationKey {
   partnerId: string;
 }
 
+// Group messages by conversation (Property + Other User)
+type ConversationGroup = {
+  property: Property;
+  partner: User;
+  lastMessage: Message;
+  propertyId: string;
+  partnerId: string;
+};
+
 const MessagesModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -323,8 +331,7 @@ const MessagesModal: React.FC<{
 
   if (!isOpen) return null;
 
-  // Group messages by conversation (Property + Other User)
-  const conversations = messages.reduce((acc, msg) => {
+  const conversations = messages.reduce<Record<string, ConversationGroup>>((acc, msg) => {
     const isMe = msg.fromId === currentUser.id;
     const partnerId = isMe ? msg.toId : msg.fromId;
     const key = `${msg.propertyId}-${partnerId}`;
@@ -347,7 +354,7 @@ const MessagesModal: React.FC<{
       }
     }
     return acc;
-  }, {} as Record<string, { property: Property; partner: User; lastMessage: Message; propertyId: string; partnerId: string }>);
+  }, {});
 
   // If initialContext doesn't exist in conversations (new chat), add a placeholder
   if (initialContext) {
@@ -1127,7 +1134,6 @@ const CreatePropertyModal: React.FC<{
   });
   // Replaced imageUrls string array with richer local state
   const [localImages, setLocalImages] = useState<LocalImage[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1165,18 +1171,6 @@ const CreatePropertyModal: React.FC<{
       }
     }
   }, [isOpen, initialData]);
-
-  const handleGenerateDescription = async () => {
-    if (!formData.title || !formData.location) {
-      alert("Por favor ingresa un título y ubicación primero.");
-      return;
-    }
-    setIsGenerating(true);
-    const featuresList = formData.features.split(',').map(f => f.trim()).filter(f => f);
-    const desc = await generatePropertyDescription(formData.title, featuresList, formData.location);
-    setFormData(prev => ({ ...prev, description: desc }));
-    setIsGenerating(false);
-  };
 
   const addRandomImage = () => {
     const newImage: LocalImage = {
@@ -1416,13 +1410,6 @@ const CreatePropertyModal: React.FC<{
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-sm font-semibold text-gray-700">Descripción</label>
-                <button 
-                  onClick={handleGenerateDescription}
-                  disabled={isGenerating}
-                  className="text-xs flex items-center gap-1 text-black font-semibold hover:text-gray-700 disabled:opacity-50 transition-colors"
-                >
-                  <Icons.AI className="w-3 h-3" /> {isGenerating ? 'Generando...' : 'Generar con IA'}
-                </button>
               </div>
               <textarea 
                 className="w-full border border-gray-300 rounded-3xl p-4 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all h-32 text-sm"
@@ -1973,4 +1960,24 @@ export default function App() {
             if (!currentUser) setIsLoginOpen(true);
             else {
               setActiveConversation(null);
-              setIsMessages
+              setIsMessagesOpen(true);
+            }
+          }} 
+          className="flex flex-col items-center text-gray-400 relative"
+        >
+          <Icons.Message className="w-6 h-6" />
+          {messages.length > 0 && currentUser && <span className="absolute top-0 right-3 w-2 h-2 bg-red-500 rounded-full"></span>}
+          <span className="text-[10px] font-medium mt-1">Mensajes</span>
+        </button>
+        <button onClick={() => !currentUser && setIsLoginOpen(true)} className="flex flex-col items-center text-gray-400">
+          {currentUser ? (
+             <img src={currentUser.avatar} className="w-6 h-6 rounded-full" />
+          ) : (
+             <Icons.User className="w-6 h-6" />
+          )}
+          <span className="text-[10px] font-medium mt-1">{currentUser ? 'Perfil' : 'Acceder'}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
