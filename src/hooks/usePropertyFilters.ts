@@ -7,7 +7,7 @@ interface Filters {
   maxPrice: string;
 }
 
-export const usePropertyFilters = (properties: Property[], currentUser: User | null) => {
+export const usePropertyFilters = (properties: Property[] = [], currentUser: User | null) => {
   const [filters, setFilters] = useState<Filters>({
     location: '',
     name: '',

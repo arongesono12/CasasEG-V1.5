@@ -40,6 +40,12 @@ export default function App() {
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState<ConversationKey | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  // Components
+  const { ProfileView } = React.lazy(() => import('./components/profile/ProfileView').then(module => ({ default: module.ProfileView })));
+  const { AdminDashboard } = React.lazy(() => import('./components/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 
   // Simulate initial loading
   useEffect(() => {
@@ -79,6 +85,8 @@ export default function App() {
   const handleLogout = () => {
     logout();
     setIsMessagesOpen(false);
+    setShowProfile(false);
+    setShowAdmin(false);
   };
 
   const handleSendMessage = (propertyId: string, toId: string, content: string) => {
@@ -192,7 +200,32 @@ export default function App() {
   const handleLogoClick = () => {
     setFilters({ location: '', name: '', maxPrice: '' });
     scrollToTop();
+    setShowProfile(false);
+    setShowAdmin(false);
   };
+
+  // RENDER: Admin Dashboard
+  if (showAdmin && currentUser?.role === 'admin') {
+     return (
+        <React.Suspense fallback={<div className="flex h-screen items-center justify-center">Cargando panel...</div>}>
+            <AdminDashboard onBack={() => setShowAdmin(false)} />
+            {toastMessage && <Toast message={toastMessage} />}
+        </React.Suspense>
+     );
+  }
+
+  // RENDER: Profile View
+  if (showProfile) {
+     return (
+        <React.Suspense fallback={<div className="flex h-screen items-center justify-center">Cargando perfil...</div>}>
+            <ProfileView 
+                onBack={() => setShowProfile(false)} 
+                onAdminClick={() => setShowAdmin(true)}  
+            />
+            {toastMessage && <Toast message={toastMessage} />}
+        </React.Suspense>
+     );
+  }
 
   // RENDER: Property Details View
   if (selectedProperty) {
@@ -211,6 +244,7 @@ export default function App() {
             currentUser={currentUser}
             messages={messages}
             properties={properties}
+            users={users}
             onSendMessage={handleSendMessage}
             initialContext={activeConversation}
           />
@@ -241,11 +275,12 @@ export default function App() {
         onCreatePropertyClick={() => setShowCreateModal(true)}
         onLogoClick={handleLogoClick}
         messageCount={messages.length}
+        onProfileClick={() => setShowProfile(true)}
       />
 
       {/* Hero Section with Search Bar */}
       <div className={`sticky top-20 z-30 bg-white border-b border-gray-100 shadow-sm transition-all duration-500 ease-in-out ${isScrolled ? 'opacity-0 pointer-events-none h-0' : 'opacity-100'}`}>
-        <div className="relative h-[400px] overflow-hidden">
+        <div className="relative h-[280px] overflow-hidden">
           {/* Background Image */}
           <div className="absolute inset-0 bg-cover bg-center hero-bg">
             {/* Overlay for better text readability */}
@@ -253,15 +288,12 @@ export default function App() {
           </div>
 
           {/* Content */}
-          <div className="relative h-full flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
+          <div className="relative h-full flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 pb-6">
             {/* Hero Text */}
-            <div className="text-center mb-8 max-w-3xl mx-auto">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight drop-shadow-lg">
+            <div className="text-center mb-6 max-w-2xl mx-auto">
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 tracking-tight drop-shadow-lg">
                 Encuentra tu Hogar Ideal
               </h1>
-              <p className="text-lg md:text-xl text-white/90 font-light drop-shadow-md">
-                Descubre las mejores propiedades en alquiler en tu zona preferida
-              </p>
             </div>
 
             {/* Search Bar */}
@@ -302,7 +334,7 @@ export default function App() {
           </div>
         ) : filteredProperties.length > 0 ? (
           <>
-            <div className="grid property-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
+            <div className="grid property-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-6 gap-y-10">
               <TransitionGroup component={null}>
                 {paginatedProperties.map((property) => (
                   <CSSTransition key={property.id} timeout={300} classNames="rtg-item">
@@ -383,17 +415,18 @@ export default function App() {
         />
       </CSSTransition>
       
-      {currentUser && (
-        <MessagesModal 
-          isOpen={isMessagesOpen}
-          onClose={() => setIsMessagesOpen(false)}
-          currentUser={currentUser}
-          messages={messages}
-          properties={properties}
-          onSendMessage={handleSendMessage}
-          initialContext={activeConversation}
-        />
-      )}
+        {currentUser && (
+          <MessagesModal 
+            isOpen={isMessagesOpen}
+            onClose={() => setIsMessagesOpen(false)}
+            currentUser={currentUser}
+            messages={messages}
+            properties={properties}
+            users={users}
+            onSendMessage={handleSendMessage}
+            initialContext={activeConversation}
+          />
+        )}
 
       {viewingImageState && (
         <ImageViewer 
@@ -416,7 +449,10 @@ export default function App() {
             setIsMessagesOpen(true);
           }
         }}
-        onProfileClick={() => !currentUser && setIsLoginOpen(true)}
+        onProfileClick={() => {
+            if (!currentUser) setIsLoginOpen(true);
+            else setShowProfile(true);
+        }}
         messageCount={messages.length}
       />
     </div>

@@ -6,7 +6,7 @@ interface UsePaginationProps<T> {
   dependencies?: any[];
 }
 
-export const usePagination = <T,>({ items, dependencies = [] }: UsePaginationProps<T>) => {
+export const usePagination = <T,>({ items = [], dependencies = [] }: UsePaginationProps<T>) => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Reset pagination when dependencies change

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Message, Notification } from '../types';
-import { INITIAL_MESSAGES } from '../constants/mockData';
 import * as supabaseService from '../services/supabaseService';
 
 interface MessagingContextType {
@@ -13,21 +12,23 @@ interface MessagingContextType {
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
 
 export const MessagingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    const useSupabase = import.meta.env.VITE_USE_SUPABASE === 'true';
-    if (!useSupabase) return;
-
-    (async () => {
-      try {
-        const remote = await supabaseService.fetchMessages();
-        if (Array.isArray(remote) && remote.length) setMessages(remote as Message[]);
-      } catch (e) {
-        console.warn('Supabase messages fetch failed', e);
-      }
-    })();
+    // Always fetch
+    const useSupabase = import.meta.env.VITE_USE_SUPABASE !== 'false';
+    
+    if (useSupabase) {
+      (async () => {
+        try {
+          const remote = await supabaseService.fetchMessages();
+          if (Array.isArray(remote)) setMessages(remote as Message[]);
+        } catch (e) {
+          console.warn('Supabase messages fetch failed', e);
+        }
+      })();
+    }
   }, []);
 
   const sendMessage = (message: Message) => {

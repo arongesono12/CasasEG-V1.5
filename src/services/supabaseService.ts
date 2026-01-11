@@ -21,15 +21,24 @@ const apiFetch = async (path: string, opts: RequestInit = {}) => {
 };
 
 export const fetchUsers = async (): Promise<User[]> => {
-  return (await apiFetch('users?select=*')) as User[];
+  const data = (await apiFetch('users?select=*')) as any[];
+  return Array.isArray(data) ? data : [];
 };
 
 export const fetchProperties = async (): Promise<Property[]> => {
-  return (await apiFetch('properties?select=*')) as Property[];
+  const data = (await apiFetch('properties?select=*')) as any[];
+  if (!Array.isArray(data)) return [];
+  return data.map(p => ({
+    ...p,
+    imageUrls: p.imageUrls || [],
+    features: p.features || [],
+    waitingList: p.waitingList || []
+  }));
 };
 
 export const fetchMessages = async (): Promise<Message[]> => {
-  return (await apiFetch('messages?select=*')) as Message[];
+  const data = (await apiFetch('messages?select=*')) as any[];
+  return Array.isArray(data) ? data : [];
 };
 
 export const createUser = async (u: Partial<User>) => {
@@ -42,4 +51,8 @@ export const createProperty = async (p: Partial<Property>) => {
 
 export const createMessage = async (m: Partial<Message>) => {
   return await apiFetch('messages', { method: 'POST', body: JSON.stringify(m) });
+};
+
+export const updateUser = async (id: string, updates: Partial<User>) => {
+  return await apiFetch(`users?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(updates) });
 };

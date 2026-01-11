@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Message, Property, ConversationKey, ConversationGroup } from '../../types';
 import { Icons } from '../Icons';
-import { INITIAL_USERS } from '../../constants/mockData';
 
 interface MessagesModalProps {
   isOpen: boolean;
@@ -11,6 +10,7 @@ interface MessagesModalProps {
   properties: Property[];
   onSendMessage: (propertyId: string, toId: string, content: string) => void;
   initialContext?: ConversationKey | null;
+  users: User[]; // Add users prop
 }
 
 export const MessagesModal: React.FC<MessagesModalProps> = ({ 
@@ -20,7 +20,8 @@ export const MessagesModal: React.FC<MessagesModalProps> = ({
   messages, 
   properties, 
   onSendMessage, 
-  initialContext 
+  initialContext,
+  users 
 }) => {
   const [selectedChat, setSelectedChat] = useState<ConversationKey | null>(initialContext || null);
   const [newMessage, setNewMessage] = useState('');
@@ -47,7 +48,7 @@ export const MessagesModal: React.FC<MessagesModalProps> = ({
 
     if (!acc[key]) {
       const property = properties.find(p => p.id === msg.propertyId);
-      const partner = INITIAL_USERS.find(u => u.id === partnerId);
+      const partner = users.find(u => u.id === partnerId);
       if (property && partner) {
         acc[key] = {
           property,
@@ -70,7 +71,7 @@ export const MessagesModal: React.FC<MessagesModalProps> = ({
     const key = `${initialContext.propertyId}-${initialContext.partnerId}`;
     if (!conversations[key]) {
       const property = properties.find(p => p.id === initialContext.propertyId);
-      const partner = INITIAL_USERS.find(u => u.id === initialContext.partnerId);
+      const partner = users.find(u => u.id === initialContext.partnerId);
       if (property && partner) {
         conversations[key] = {
           property,
@@ -151,13 +152,13 @@ export const MessagesModal: React.FC<MessagesModalProps> = ({
                   <Icons.ChevronLeft className="w-6 h-6" />
                 </button>
                 <img 
-                  src={INITIAL_USERS.find(u => u.id === selectedChat.partnerId)?.avatar} 
+                  src={users.find(u => u.id === selectedChat.partnerId)?.avatar} 
                   className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-200" 
                   alt="Partner"
                 />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-gray-900 truncate">
-                    {INITIAL_USERS.find(u => u.id === selectedChat.partnerId)?.name}
+                    {users.find(u => u.id === selectedChat.partnerId)?.name}
                   </h3>
                   <p className="text-xs text-gray-500 truncate">
                     {properties.find(p => p.id === selectedChat.propertyId)?.title}

@@ -119,15 +119,15 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         )}
       </div>
       
-      <div className="flex-1 flex flex-col p-4 pt-2">
+      <div className="flex-1 flex flex-col p-3 pt-2">
         <div className="flex justify-between items-start">
-          <h3 className="font-bold text-gray-900 leading-tight text-lg">{property.location}</h3>
+          <h3 className="font-bold text-gray-900 leading-tight text-base">{property.location}</h3>
           
           <div className="flex items-center gap-1 group/rating relative">
             <div className="flex items-center" onMouseLeave={() => setHoverRating(0)}>
-                <Icons.Star className="w-4 h-4 text-gray-900 fill-gray-900 mr-1" />
-                <span className="text-sm font-medium text-gray-900">{property.rating.toFixed(2)}</span>
-                <span className="text-sm text-gray-500 ml-0.5">({property.reviewCount})</span>
+                <Icons.Star className="w-3.5 h-3.5 text-black fill-black mr-1" />
+                <span className="text-xs font-medium text-gray-900">{property.rating.toFixed(2)}</span>
+                <span className="text-xs text-gray-500 ml-0.5">({property.reviewCount})</span>
                 
                 {/* Hover Rating Popup */}
                 <div className="absolute top-6 right-0 bg-white border border-gray-100 shadow-xl rounded-xl p-2 flex gap-1 invisible opacity-0 group-hover/rating:visible group-hover/rating:opacity-100 transition-all z-20">
@@ -143,7 +143,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                             aria-label={`Valorar con ${star} estrellas`}
                         >
                             <Icons.Star 
-                                className={`w-5 h-5 transition-colors ${
+                                className={`w-4 h-4 transition-colors ${
                                     star <= (hoverRating || Math.round(property.rating)) 
                                     ? 'text-yellow-400 fill-yellow-400' 
                                     : 'text-gray-200'
@@ -156,60 +156,60 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           </div>
         </div>
         
-        <p className="text-gray-500 text-sm mt-1 line-clamp-1">{property.title}</p>
+        <p className="text-gray-500 text-xs mt-1 line-clamp-1">{property.title}</p>
         
         {/* Icons Row */}
-        <div className="flex items-center gap-4 mt-2 mb-3">
-            <div className="flex items-center gap-1.5 text-gray-600 text-sm">
-                <Icons.Bed className="w-4 h-4" /> <span className="font-medium">{property.bedrooms}</span>
+        <div className="flex items-center gap-3 mt-2 mb-2">
+            <div className="flex items-center gap-1 text-gray-600 text-xs">
+                <Icons.Bed className="w-3.5 h-3.5 property-card-icon" /> <span className="font-medium">{property.bedrooms}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-gray-600 text-sm">
-                <Icons.Bath className="w-4 h-4" /> <span className="font-medium">{property.bathrooms}</span>
+            <div className="flex items-center gap-1 text-gray-600 text-xs">
+                <Icons.Bath className="w-3.5 h-3.5 property-card-icon" /> <span className="font-medium">{property.bathrooms}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-gray-600 text-sm">
-                <Icons.Area className="w-4 h-4" /> <span className="font-medium">{property.area} m²</span>
+            <div className="flex items-center gap-1 text-gray-600 text-xs">
+                <Icons.Area className="w-3.5 h-3.5 property-card-icon" /> <span className="font-medium">{property.area} m²</span>
             </div>
         </div>
         
         <div className="mt-auto flex items-baseline gap-1">
-            <span className="font-bold text-gray-900 text-lg">{property.price.toLocaleString()} FCA</span>
-            <span className="text-gray-900 text-sm">Mes</span>
+            <span className="font-bold text-gray-900 text-base">{property.price.toLocaleString()} FCA</span>
+            <span className="text-gray-900 text-xs">/Mes</span>
         </div>
 
-        <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
           {(userRole === 'client' || userRole === 'guest') && (
             property.isOccupied ? (
               <Button 
                 onClick={() => onAction('notify', property)} 
                 variant="secondary" 
-                className="w-full text-sm"
+                className="w-full text-xs py-2 h-8"
               >
-                <Icons.Bell className="w-4 h-4" /> Avisarme
+                <Icons.Bell className="w-3 h-3 mr-1.5" /> Avisarme
               </Button>
             ) : (
               <Button 
                 onClick={() => onAction('contact', property)} 
                 variant="brand"
-                className="w-full text-sm"
+                className="w-full text-xs py-2 h-8"
               >
-                <Icons.Message className="w-4 h-4 mr-2" /> Contactar
+                <Icons.Message className="w-3 h-3 mr-1.5" /> Contactar
               </Button>
             )
           )}
           
           {userRole === 'owner' && (
             <div className="flex gap-2">
-              <Button onClick={() => onAction('edit', property)} variant="secondary" className="flex-1 text-sm">Editar</Button>
-              <Button onClick={() => onAction('delete', property)} variant="danger" className="p-2"><Icons.Delete className="w-4 h-4" /></Button>
+              <Button onClick={() => onAction('edit', property)} variant="secondary" className="flex-1 text-xs py-2 h-8">Editar</Button>
+              <Button onClick={() => onAction('delete', property)} variant="danger" className="text-xs py-2 h-8 px-2"><Icons.Delete className="w-3 h-3" /></Button>
             </div>
           )}
 
           {userRole === 'admin' && (
             <div className="flex gap-2">
               {property.status === 'active' ? (
-                <Button onClick={() => onAction('suspend', property)} variant="danger" className="w-full text-sm">Suspender</Button>
+                <Button onClick={() => onAction('suspend', property)} variant="danger" className="w-full text-xs py-2 h-8">Suspender</Button>
               ) : (
-                <Button onClick={() => onAction('activate', property)} className="w-full text-sm bg-green-600 hover:bg-green-700">Activar</Button>
+                <Button onClick={() => onAction('activate', property)} className="w-full text-xs py-2 h-8 bg-green-600 hover:bg-green-700">Activar</Button>
               )}
             </div>
           )}

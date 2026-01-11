@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Property } from '../types';
-import { INITIAL_PROPERTIES } from '../constants/mockData';
 import * as supabaseService from '../services/supabaseService';
 
 interface PropertyContextType {
@@ -14,20 +13,22 @@ interface PropertyContextType {
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
 
 export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [properties, setProperties] = useState<Property[]>(INITIAL_PROPERTIES);
+  const [properties, setProperties] = useState<Property[]>([]);
 
   useEffect(() => {
-    const useSupabase = import.meta.env.VITE_USE_SUPABASE === 'true';
-    if (!useSupabase) return;
-
-    (async () => {
-      try {
-        const remote = await supabaseService.fetchProperties();
-        if (Array.isArray(remote) && remote.length) setProperties(remote as Property[]);
-      } catch (e) {
-        console.warn('Supabase properties fetch failed', e);
-      }
-    })();
+    // Always fetch
+    const useSupabase = import.meta.env.VITE_USE_SUPABASE !== 'false';
+    
+    if (useSupabase) {
+      (async () => {
+        try {
+          const remote = await supabaseService.fetchProperties();
+          if (Array.isArray(remote)) setProperties(remote as Property[]);
+        } catch (e) {
+          console.warn('Supabase properties fetch failed', e);
+        }
+      })();
+    }
   }, []);
 
   const addProperty = (property: Property) => {
