@@ -44,3 +44,24 @@ export interface Notification {
   read: boolean;
   timestamp: number;
 }
+
+export interface ConversationKey {
+  propertyId: string;
+  partnerId: string;
+}
+
+export interface LocalImage {
+  id: string;
+  url: string;
+  isUploading: boolean;
+  progress: number;
+}
+
+export interface ConversationGroup {
+  property: Property;
+  partner: User;
+  lastMessage: Message;
+  propertyId: string;
+  partnerId: string;
+}
+

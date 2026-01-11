@@ -6,3 +6,4 @@ export const generatePropertyDescription = async (
 ): Promise<string> => {
   return "Funcionalidad de IA desactivada en modo local.";
 };
+

@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Styles */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Noto Sans', sans-serif;
+  background-color: #f3f4f6;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Hide scrollbar for clean mobile look */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+}
+
+@supports (scrollbar-width: none) {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+/* Custom animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+/* react-transition-group helper classes for list items */
+.rtg-item-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.rtg-item-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+.rtg-item-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+.rtg-item-exit-active {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 200ms ease-in, transform 200ms ease-in;
+}
+
+/* modal transitions */
+.modal-enter {
+  opacity: 0;
+  transform: scale(0.98) translateY(-6px);
+}
+.modal-enter-active {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+.modal-exit {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+.modal-exit-active {
+  opacity: 0;
+  transform: scale(0.98) translateY(-6px);
+  transition: opacity 250ms ease-in, transform 250ms ease-in;
+}
+
+/* Hero background (use relative path from this CSS file) */
+.hero-bg {
+  background-image: url("../assets/images/portada.jpg");
+  background-position: center;
+  background-size: cover;
+}
+
+/* Safe area for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
