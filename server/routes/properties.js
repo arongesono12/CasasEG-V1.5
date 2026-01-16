@@ -1,7 +1,17 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { supabaseProxyFetch } from '../supabaseProxy.js';
+import { validatePropertyCreate, checkValidation } from '../middleware/validation.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Rate limit for property creation (max 5 per 15 minutes)
+const createPropertyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many properties created, please try again later.'
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -13,14 +23,27 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
-  try {
-    const body = req.body;
-    const data = await supabaseProxyFetch('properties', 'POST', body);
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+// POST - Create property (only for owners, with validation)
+router.post('/', 
+  createPropertyLimiter,
+  requireAuth,
+  requireRole('owner', 'admin'),
+  validatePropertyCreate, 
+  checkValidation, 
+  async (req, res) => {
+    try {
+      const body = {
+        ...req.body,
+        ownerId: req.userId, // Set from auth middleware
+        status: 'active',
+        rating: 0,
+        waitingList: []
+      };
+      const data = await supabaseProxyFetch('properties', 'POST', body);
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
 });
 
 // GET by id

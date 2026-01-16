@@ -16,6 +16,12 @@ export interface Property {
   description: string;
   price: number;
   location: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  city?: string;
+  region?: string;
   imageUrls: string[];
   bedrooms: number;
   bathrooms: number;
@@ -25,7 +31,9 @@ export interface Property {
   waitingList: string[]; // Array of User IDs waiting for this property
   status: 'active' | 'suspended';
   rating: number;
+  review_count?: number; // DB field compatibility
   reviewCount: number;
+  category?: string;
 }
 
 export interface Message {

@@ -1,35 +1,24 @@
-export const getSupabaseConfig = () => {
-  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-  return { url, key };
-};
+import { createClient } from '@supabase/supabase-js';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Supabase config missing (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Helper for legacy manual fetch calls if needed, 
+// though we should migrate to using the client directly.
 export const supabaseFetch = async (path: string, opts: RequestInit = {}) => {
-  const { url, key } = getSupabaseConfig();
-  if (!url || !key) throw new Error('Supabase config missing (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)');
-
-  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/${path}`;
-  const headers: Record<string, string> = {
-    'apikey': key,
-    'Authorization': `Bearer ${key}`,
-    'Content-Type': 'application/json'
-  };
-
-  const res = await fetch(endpoint, {
-    ...opts,
-    headers: { ...(opts.headers || {}), ...headers }
+  const { data, error } = await supabase.functions.invoke(path, {
+     method: (opts.method || 'GET') as any,
+     headers: opts.headers as any, 
+     body: opts.body
   });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Supabase request failed ${res.status} ${res.statusText}: ${body}`);
-  }
-
-  // For insert/update that return no-body, return empty
-  const text = await res.text();
-  try {
-    return text ? JSON.parse(text) : null;
-  } catch (e) {
-    return text;
-  }
+  
+  if (error) throw error;
+  return data;
 };
+

@@ -46,7 +46,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   return (
     <div 
-      className={`bg-white rounded-3xl flex flex-col h-full group cursor-pointer overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300 transform ${isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+      className={`bg-white rounded-3xl flex flex-col h-full group cursor-pointer overflow-hidden border border-gray-100 premium-shadow transition-all duration-500 transform ${isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
       onClick={handleCardClick}
     >
       <div className="relative aspect-[4/3] overflow-hidden m-2 rounded-2xl">
@@ -58,11 +58,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 key={idx}
                 src={url}
                 alt={`${property.title} - ${idx + 1}`}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${idx === currentImgIndex ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out ${idx === currentImgIndex ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`}
               />
             ))
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+            <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
               <Icons.Image className="w-12 h-12" />
             </div>
           )}
@@ -73,21 +73,21 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           <>
             <button
               onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10 focus:opacity-100"
+              className="absolute left-3 top-1/2 -translate-y-1/2 glass-effect hover:bg-white text-gray-800 p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-sm z-10 focus:opacity-100"
               aria-label="Imagen anterior"
             >
               <Icons.ChevronLeft className="w-4 h-4" />
             </button>
             <button 
               onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10 focus:opacity-100"
+              className="absolute right-3 top-1/2 -translate-y-1/2 glass-effect hover:bg-white text-gray-800 p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-sm z-10 focus:opacity-100"
               aria-label="Imagen siguiente"
             >
               <Icons.ChevronRight className="w-4 h-4" />
             </button>
             
             {/* Interactive Indicators */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
               {property.imageUrls.map((_, idx) => (
                 <button 
                   key={idx} 
@@ -95,8 +95,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                     e.stopPropagation();
                     setCurrentImgIndex(idx);
                   }}
-                  className={`w-1.5 h-1.5 rounded-full shadow-sm transition-all ${
-                    idx === currentImgIndex ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/80'
+                  className={`w-1.5 h-1.5 rounded-full shadow-sm transition-all duration-300 ${
+                    idx === currentImgIndex ? 'bg-white scale-150 w-3' : 'bg-white/40 hover:bg-white/70'
                   }`}
                   aria-label={`Ver imagen ${idx + 1}`}
                 />
@@ -106,22 +106,21 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         )}
 
         <div className="absolute top-3 right-3 flex gap-2 z-10">
-          {property.isOccupied ? (
-            <span className="bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wide">Ocupado</span>
-          ) : (
-            <span className="bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wide">Disponible</span>
-          )}
+          <span className={`glass-effect text-xs font-bold px-3.5 py-2 rounded-full shadow-sm uppercase tracking-wider ${property.isOccupied ? 'text-red-600' : 'text-emerald-600'}`}>
+            {property.isOccupied ? 'Ocupado' : 'Disponible'}
+          </span>
         </div>
         {property.status === 'suspended' && (
-           <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-10 pointer-events-none">
-             <span className="text-white font-bold text-xl border-2 border-white px-4 py-2 rounded-xl">SUSPENDIDO</span>
+           <div className="absolute inset-0 bg-gray-900/60 flex items-center justify-center z-10 pointer-events-none backdrop-blur-[2px]">
+             <span className="text-white font-black text-xl border-2 border-white px-5 py-2.5 rounded-2xl tracking-widest uppercase">Suspendido</span>
            </div>
         )}
       </div>
+
       
-      <div className="flex-1 flex flex-col p-3 pt-2">
+      <div className="flex-1 flex flex-col p-3 pt-1">
         <div className="flex justify-between items-start">
-          <h3 className="font-bold text-gray-900 leading-tight text-base">{property.location}</h3>
+          <h3 className="font-bold text-gray-900 leading-tight text-sm">{property.location}</h3>
           
           <div className="flex items-center gap-1 group/rating relative">
             <div className="flex items-center" onMouseLeave={() => setHoverRating(0)}>
@@ -172,11 +171,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
         
         <div className="mt-auto flex items-baseline gap-1">
-            <span className="font-bold text-gray-900 text-base">{property.price.toLocaleString()} FCA</span>
-            <span className="text-gray-900 text-xs">/Mes</span>
+            <span className="font-bold text-gray-900 text-sm">{property.price.toLocaleString()} FCA</span>
+            <span className="text-gray-900 text-[10px]">/Mes</span>
         </div>
 
-        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
           {(userRole === 'client' || userRole === 'guest') && (
             property.isOccupied ? (
               <Button 

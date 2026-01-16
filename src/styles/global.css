@@ -2,19 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --premium-black: #0a0a0a;
+  --premium-gold: #c5a059;
+  --premium-gray: #1f1f1f;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.2);
+}
+
 /* Custom Styles */
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: 'Noto Sans', sans-serif;
-  background-color: #f3f4f6;
+  font-family: "Intel", system-ui, -apple-system, sans-serif;
+  background-color: #fafafa;
+  color: var(--premium-black);
 }
 
 #root {
   height: 100%;
+}
+
+/* Glassmorphism Utilities */
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
 }
 
 /* Hide scrollbar for clean mobile look */
@@ -32,20 +58,21 @@ body {
   }
 }
 
-/* Custom animations */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+/* Premium Shadows */
+.premium-shadow {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
 }
 
-@keyframes fade-in-up {
+.premium-shadow:hover {
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15);
+}
+
+/* Custom animations */
+@keyframes slide-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -53,57 +80,46 @@ body {
   }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.3s ease-out;
+.animate-slide-up {
+  animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* react-transition-group helper classes for list items */
 .rtg-item-enter {
   opacity: 0;
-  transform: translateY(8px);
+  transform: scale(0.95) translateY(10px);
 }
 .rtg-item-enter-active {
   opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms ease-out, transform 300ms ease-out;
+  transform: scale(1) translateY(0);
+  transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 400ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .rtg-item-exit {
   opacity: 1;
-  transform: translateY(0);
 }
 .rtg-item-exit-active {
   opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 200ms ease-in, transform 200ms ease-in;
+  transform: scale(0.95);
+  transition: opacity 300ms ease-in, transform 300ms ease-in;
 }
 
 /* modal transitions */
 .modal-enter {
   opacity: 0;
-  transform: scale(0.98) translateY(-6px);
+  transform: scale(0.95);
 }
 .modal-enter-active {
   opacity: 1;
-  transform: scale(1) translateY(0);
-  transition: opacity 300ms ease-out, transform 300ms ease-out;
-}
-.modal-exit {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
-.modal-exit-active {
-  opacity: 0;
-  transform: scale(0.98) translateY(-6px);
-  transition: opacity 250ms ease-in, transform 250ms ease-in;
+  transform: scale(1);
+  transition: opacity 400ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Hero background (use relative path from this CSS file) */
+/* Hero background */
 .hero-bg {
-  background-image: url("../assets/images/portada.jpg");
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    url("../assets/images/portada.jpg");
   background-position: center;
   background-size: cover;
 }
@@ -113,3 +129,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

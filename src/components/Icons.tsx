@@ -19,11 +19,22 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Image as ImageIcon,
   Heart,
   Star,
   Ruler,
-  Send
+  Send,
+  LayoutDashboard,
+  Users,
+  Building,
+  Settings,
+  Activity,
+  History,
+  TrendingUp,
+  Map,
+  Grid
 } from 'lucide-react';
 
 export const Icons = {
@@ -47,10 +58,20 @@ export const Icons = {
   Delete: Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Image: ImageIcon,
   Heart,
   Star,
   Area: Ruler,
-  Send
+  Send,
+  Dashboard: LayoutDashboard,
+  Users,
+  Building,
+  Settings,
+  Activity,
+  History,
+  TrendingUp,
+  Map,
+  Grid
 };
-

@@ -5,13 +5,15 @@ interface Filters {
   location: string;
   name: string;
   maxPrice: string;
+  category: string;
 }
 
 export const usePropertyFilters = (properties: Property[] = [], currentUser: User | null) => {
   const [filters, setFilters] = useState<Filters>({
     location: '',
     name: '',
-    maxPrice: ''
+    maxPrice: '',
+    category: 'Todas'
   });
 
   const filteredProperties = useMemo(() => {
@@ -23,7 +25,12 @@ export const usePropertyFilters = (properties: Property[] = [], currentUser: Use
       // 2. Price Filter
       const priceMatch = filters.maxPrice === '' || p.price <= Number(filters.maxPrice);
 
-      // 3. Role based visibility
+      // 3. Category Filter
+      // Note: This assumes properties have a 'type' or 'category' field. 
+      // If not, we might need to add it to the type definition.
+      const categoryMatch = filters.category === 'Todas' || (p as any).category === filters.category;
+
+      // 4. Role based visibility
       let roleMatch = true;
       if (currentUser?.role === 'owner') {
         roleMatch = p.ownerId === currentUser.id;
@@ -33,9 +40,10 @@ export const usePropertyFilters = (properties: Property[] = [], currentUser: Use
       }
       // Admin sees all
 
-      return nameMatch && locMatch && priceMatch && roleMatch;
+      return nameMatch && locMatch && priceMatch && categoryMatch && roleMatch;
     });
   }, [properties, filters, currentUser]);
+
 
   return {
     filters,

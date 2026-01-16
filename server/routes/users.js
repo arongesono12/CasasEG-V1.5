@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabaseProxyFetch } from '../supabaseProxy.js';
+import { validateUserUpdate, checkValidation } from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -34,8 +35,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PATCH (update) by id
-router.patch('/:id', async (req, res) => {
+// PATCH (update) by id with validation
+router.patch('/:id', validateUserUpdate, checkValidation, async (req, res) => {
   try {
     const id = req.params.id;
     const body = req.body;
