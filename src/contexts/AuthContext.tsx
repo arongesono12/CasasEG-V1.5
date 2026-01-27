@@ -1,214 +1,215 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 import * as supabaseService from '../services/supabaseService';
 import { supabase } from '../services/supabaseClient';
+import { Session } from '@supabase/supabase-js';
 
+// Simplified Context Interface
 interface AuthContextType {
   currentUser: User | null;
-  users: User[];
   isLoading: boolean;
-  login: (user: User) => void;
+  
+  // Auth Actions
   loginWithEmail: (email: string, password: string) => Promise<void>;
+  registerWithEmail: (data: { email: string; password: string; name: string; role: UserRole }) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  logout: () => void;
-  register: (user: User) => void;
-  registerWithEmail: (user: Partial<User>, password: string) => Promise<void>;
-  updateProfile: (data: Partial<User>) => void;
+  logout: () => Promise<void>;
+  
+  // Profile Actions
+  updateProfile: (data: Partial<User>) => Promise<void>;
+  
+  // Legacy support (optional, can be removed if not used)
+  users: User[]; // Keeping empty array to avoid breaking UI that maps this
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [users, setUsers] = useState<User[]>([]);
 
-  // Users are now fetched only when needed (e.g. searching or admin)
-  // to avoid loading thousands of records on every app mount.
-
-
-  // Listen for Supabase Auth changes
+  // Initialize Auth State
   useEffect(() => {
-    // Initial session check
-    const checkInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await handleUserSession(session);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
         setIsLoading(false);
       }
     };
-    checkInitialSession();
+    
+    // Fetch users for admin/public directories (simplified)
+    const loadUsers = async () => {
+        const allUsers = await supabaseService.getAllUsers();
+        if (mounted && allUsers) setUsers(allUsers);
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        // If email is not confirmed, we don't set the local user
-        if (session.user.app_metadata.provider === 'email' && !session.user.email_confirmed_at) {
-          console.log('AuthContext: User email not confirmed yet');
-          setCurrentUser(null);
-          setIsLoading(false);
-          return;
-        }
+    initializeAuth();
+    loadUsers();
 
-        const email = session.user.email;
-        if (!email) {
-          setIsLoading(false);
-          return;
-        }
-
-        // Check if user exists in our DB
-        let existingUser = users.find(u => u.email === email);
-        
-        // If users list not loaded yet, fetch from DB by email
-        if (!existingUser) {
-           const { data } = await supabase.from('users').select('*').eq('email', email).single();
-           if (data) existingUser = data;
-        }
-
-        if (existingUser) {
-          // Check if there's a pending role change (e.g. from owner selection)
-          const pendingRole = localStorage.getItem('casaseg_pending_role') as any;
-          localStorage.removeItem('casaseg_pending_role');
-
-          const isSpecificAdmin = email === 'arongesono@outlook.es';
-          const targetRole = isSpecificAdmin ? 'admin' : (pendingRole || existingUser.role);
-
-          if (existingUser.role !== targetRole) {
-            const updatedUser = { ...existingUser, role: targetRole };
-            setCurrentUser(updatedUser);
-            await supabaseService.updateUser(existingUser.id, { role: targetRole });
-          } else {
-            setCurrentUser(existingUser);
-          }
-        } else {
-          // User doesn't exist in public.users, create them now.
-          // This serves as a fallback for the database trigger.
-          const isSpecificAdmin = email === 'arongesono@outlook.es';
-          const pendingRole = localStorage.getItem('casaseg_pending_role') as any;
-          localStorage.removeItem('casaseg_pending_role');
-          
-          const finalRole = isSpecificAdmin ? 'admin' : (pendingRole || 'client');
-          const metadata = session.user.user_metadata || {};
-          const fullName = metadata.full_name || metadata.name || session.user.email?.split('@')[0] || 'Usuario';
-          const avatar = metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`;
-
-          const newUser: User = {
-            id: session.user.id,
-            email: email,
-            name: fullName,
-            role: finalRole,
-            avatar: avatar
-          };
-
-          try {
-             // We use insert().select() with onConflict to be safe
-             const { error: insertError } = await supabase.from('users').upsert(newUser, { onConflict: 'id' });
-             if (insertError) {
-               console.warn('Silent warning: Could not upsert user profile (it might already exist via trigger)', insertError);
-             }
-             setCurrentUser(newUser);
-          } catch (createErr) {
-             console.error('Error creating user profile fallback:', createErr);
-             setCurrentUser(newUser);
-          }
-        }
-        setIsLoading(false);
-      } else if (event === 'SIGNED_OUT') {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+      
+      if (session?.user) {
+        await handleUserSession(session);
+      } else {
         setCurrentUser(null);
         setIsLoading(false);
-      } else if (event === 'INITIAL_SESSION') {
-        // Handle specifically if session is checked but no change happened
-        if (!session) setIsLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [users]); // Re-run if users list changes (though logic handles missing users)
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
-  // Update auth user in supabaseService whenever currentUser changes
-  useEffect(() => {
-    supabaseService.setAuthUser(currentUser);
-  }, [currentUser]);
+  // Helper to process session and get/create user profile
+  const handleUserSession = async (session: Session) => {
+    try {
+      if (!session.user.email) throw new Error('No email in session');
 
-  const login = (user: User) => {
-    setCurrentUser(user);
+      // 1. Try to fetch existing user profile
+      let userProfile = await supabaseService.getUserById(session.user.id);
+
+      // 2. If no profile exists, create one (lazy creation)
+      if (!userProfile) {
+        console.log('Creating new profile for user...');
+        
+        // Determine role (check localStorage for pending role from registration flow)
+        const pendingRole = localStorage.getItem('casaseg_pending_role') as UserRole;
+        localStorage.removeItem('casaseg_pending_role');
+
+        const isSpecificAdmin = session.user.email === 'arongesono@outlook.es';
+        const finalRole: UserRole = isSpecificAdmin ? 'admin' : (pendingRole || 'client');
+        
+        const metadata = session.user.user_metadata || {};
+        const newProfile: User = {
+          id: session.user.id,
+          email: session.user.email,
+          name: metadata.full_name || metadata.name || session.user.email.split('@')[0],
+          role: finalRole,
+          avatar: metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.email)}&background=random`
+        };
+
+        const createdUser = await supabaseService.createUser(newProfile);
+        if (createdUser) {
+          userProfile = createdUser;
+        } else {
+          // Fallback if DB insert fails but Auth succeeds (should rarely happen)
+           userProfile = newProfile;
+        }
+      }
+
+      setCurrentUser(userProfile);
+    } catch (error) {
+      console.error('Error handling user session:', error);
+      // Don't block app, just show no user? or show error?
+      // For now, clear user to be safe
+      setCurrentUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loginWithEmail = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
-      const { user } = await supabaseService.signInWithEmail(email, password);
+      const { user, error } = await supabaseService.signInWithEmail(email, password);
+      if (error) throw error;
+      if (!user) throw new Error('Login failed');
+      // onAuthStateChange will handle the rest
+    } catch (error) {
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  const registerWithEmail = async ({ email, password, name, role }: { email: string; password: string; name: string; role: UserRole }) => {
+    setIsLoading(true);
+    try {
+      // Store role in localStorage just in case, though we pass it directly to signUp options usually
+      localStorage.setItem('casaseg_pending_role', role);
+      
+      const { user, error } = await supabaseService.signUpWithEmail(email, password, {
+        full_name: name,
+        role: role, // Metadata for triggers
+      });
+      
+      if (error) throw error;
+      
+      // If auto-confirm is enabled, onAuthStateChange picks it up.
+      // If email confirmation is required, we should notify user.
       if (user && !user.email_confirmed_at) {
-        throw new Error('VERIFY_EMAIL');
+        // Just return, UI should show "check your email"
+        setIsLoading(false);
       }
-    } catch (error: any) {
-      if (error.message?.includes('Email not confirmed')) {
-        throw new Error('VERIFY_EMAIL');
-      }
+    } catch (error) {
+      setIsLoading(false);
       throw error;
     }
   };
 
   const signInWithGoogle = async () => {
+    // No set loading here, because redirect happens immediately
     await supabaseService.signInWithGoogle();
   };
 
   const logout = async () => {
-    await supabaseService.signOut();
-    setCurrentUser(null);
-  };
-
-  const register = (user: User) => {
-    setUsers(prev => [...prev, user]);
-    setCurrentUser(user);
-    supabaseService.createUser(user).catch(console.error);
-  };
-
-  const registerWithEmail = async (user: Partial<User>, password: string) => {
-    await supabaseService.signUpWithEmail(user.email!, password, {
-      full_name: user.name,
-      role: user.role,
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || '')}&background=random`
-    });
+    setIsLoading(true);
+    try {
+      await supabaseService.signOut();
+      setCurrentUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateProfile = async (data: Partial<User>) => {
     if (!currentUser) return;
+    
+    // Optimistic update
+    const updated = { ...currentUser, ...data };
+    setCurrentUser(updated);
 
     try {
-      const updatedUser = { ...currentUser, ...data };
-      setCurrentUser(updatedUser);
-      setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-
-      try {
-        await supabaseService.updateUser(currentUser.id, data);
-      } catch (error) {
-        console.error('Error updating user in backend:', error);
-      }
+      await supabaseService.updateUser(currentUser.id, data);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Failed to update profile:', error);
+      // Revert if needed, but usually fine to keep local state for UX
     }
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      currentUser, 
-      users, 
+    <AuthContext.Provider value={{
+      currentUser,
       isLoading,
-      login, 
       loginWithEmail,
-      signInWithGoogle, 
-      logout, 
-      register, 
       registerWithEmail,
-      updateProfile 
+      signInWithGoogle,
+      logout,
+      updateProfile,
+      users,
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 };
-

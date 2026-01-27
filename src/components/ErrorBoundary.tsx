@@ -26,12 +26,11 @@ export class ErrorBoundary extends React.Component<{}, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-8">
-          <div className="max-w-lg text-center">
-            <h2 className="text-2xl font-bold mb-2">Ha ocurrido un error</h2>
-            <p className="text-gray-600 mb-4">The application encountered a problem and cannot continue. Please check the console for details.</p>
-            <pre className="text-xs text-left bg-gray-100 p-3 rounded overflow-auto">{this.state.error?.message}</pre>
-          </div>
+        <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+            <ErrorState 
+                type="error"
+                message={this.state.error?.message}
+            />
         </div>
       );
     }
@@ -39,3 +38,5 @@ export class ErrorBoundary extends React.Component<{}, State> {
     return this.props.children;
   }
 }
+
+import { ErrorState } from './ui/ErrorState';

@@ -83,3 +83,36 @@ ON CONFLICT (id) DO NOTHING;
 --   luego las sentencias INSERT insertarán los datos de ejemplo. Si algún SELECT devuelve NULL (por ejemplo
 --   si el usuario owner@test.com no existe), modifica el INSERT de la propiedad para usar un owner_id explícito.
 -- - Si prefieres UUIDs generados automáticamente, puedes omitir los valores `id` en los INSERTs.
+
+-- =================================================================
+-- Row Level Security (RLS) Policies
+-- =================================================================
+
+-- Enable RLS on the tables
+ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+-- Helper function to get user role from public.users table
+create or replace function get_user_role()
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select role from users where id = auth.uid()
+$$;
+
+-- USERS table policies
+CREATE POLICY "Users can view and update their own profile." ON users FOR ALL TO authenticated USING (auth.uid() = id);
+
+-- PROPERTIES table policies
+-- 1. Allow public read access to active properties
+CREATE POLICY "Public can view active properties." ON properties FOR SELECT USING (status = 'active');
+-- 2. Allow authenticated users to read their own properties
+CREATE POLICY "Owners can view their own properties." ON properties FOR SELECT TO authenticated USING (auth.uid() = owner_id);
+-- 3. Allow authenticated users to insert their own properties
+CREATE POLICY "Authenticated users can create properties." ON properties FOR INSERT TO authenticated WITH CHECK (auth.uid() = owner_id);
+-- 4. Allow admins to have full access
+CREATE POLICY "Admins have full access to all properties" ON properties FOR ALL USING (get_user_role() = 'admin') WITH CHECK (get_user_role() = 'admin');
+-- 5. Allow owners to delete their own properties
+CREATE POLICY "Owners can delete their own properties." ON properties FOR DELETE TO authenticated USING (auth.uid() = owner_id);

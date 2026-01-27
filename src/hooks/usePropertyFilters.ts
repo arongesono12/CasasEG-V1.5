@@ -33,7 +33,10 @@ export const usePropertyFilters = (properties: Property[] = [], currentUser: Use
       // 4. Role based visibility
       let roleMatch = true;
       if (currentUser?.role === 'owner') {
-        roleMatch = p.ownerId === currentUser.id;
+        // Owners see: 
+        // 1. Their own properties (regardless of status)
+        // 2. Any other property that is 'active' (publicly visible)
+        roleMatch = p.ownerId === currentUser.id || p.status === 'active';
       } else if (!currentUser || currentUser.role === 'client') {
         // Public/Client only sees active properties
         roleMatch = p.status === 'active';

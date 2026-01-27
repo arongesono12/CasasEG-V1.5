@@ -23,7 +23,7 @@ import { useNavigate } from "react-router-dom";
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { currentUser, users, login, register, logout } = useAuth();
+  const { currentUser, users, logout } = useAuth();
   const { properties, deleteProperty, updateProperty, addProperty } =
     useProperties();
   const { messages, sendMessage, addNotification } = useMessaging();
@@ -51,11 +51,7 @@ export function HomePage() {
       dependencies: [filters],
     });
 
-  useEffect(() => {
-    if (currentUser?.role === 'admin') {
-      navigate('/admin');
-    }
-  }, [currentUser, navigate]);
+
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1500);
@@ -221,7 +217,7 @@ export function HomePage() {
             />
           </div>
         ) : isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-10">
+          <div className="grid property-grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-10">
             {[...Array(APP_CONFIG.ITEMS_PER_PAGE)].map((_, i) => (
               <PropertyCardSkeleton key={i} />
             ))}
@@ -294,12 +290,6 @@ export function HomePage() {
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
-        onLogin={(u) => {
-          login(u);
-          setIsLoginOpen(false);
-        }}
-        users={users}
-        onRegister={register}
       />
 
       {currentUser && (
@@ -344,6 +334,10 @@ export function HomePage() {
       <MobileNavigation
         currentUser={currentUser}
         onHomeClick={() => scrollToTop()}
+        onPropertiesClick={() => {
+          navigate('/properties');
+          scrollToTop();
+        }}
         onMessagesClick={() => {
           if (!currentUser) setIsLoginOpen(true);
           else {

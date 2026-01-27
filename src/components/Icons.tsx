@@ -34,7 +34,13 @@ import {
   History,
   TrendingUp,
   Map,
-  Grid
+  Grid,
+  Eye,
+  EyeOff,
+  WifiOff,
+  AlertTriangle,
+  Clock,
+  RefreshCcw
 } from 'lucide-react';
 
 export const Icons = {
@@ -73,5 +79,11 @@ export const Icons = {
   History,
   TrendingUp,
   Map,
-  Grid
+  Grid,
+  Eye,
+  EyeOff,
+  WifiOff,
+  Alert: AlertTriangle,
+  Clock,
+  Refresh: RefreshCcw
 };

@@ -4,14 +4,21 @@ import { PropertyProvider } from './contexts/PropertyContext';
 import { MessagingProvider } from './contexts/MessagingContext';
 import { AppRouter } from './navigation/AppRouter';
 
+import { ConnectivityHandler } from './components/ConnectivityHandler';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 export default function App() {
   return (
-    <AuthProvider>
-      <PropertyProvider>
-        <MessagingProvider>
-          <AppRouter />
-        </MessagingProvider>
-      </PropertyProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <ConnectivityHandler>
+        <AuthProvider>
+          <PropertyProvider>
+            <MessagingProvider>
+              <AppRouter />
+            </MessagingProvider>
+          </PropertyProvider>
+        </AuthProvider>
+      </ConnectivityHandler>
+    </ErrorBoundary>
   );
 }

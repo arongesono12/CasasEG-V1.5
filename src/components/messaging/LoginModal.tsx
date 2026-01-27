@@ -8,21 +8,16 @@ import { useAuth } from '../../contexts/AuthContext';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (user: User) => void;
-  users: User[];
-  onRegister: (newUser: User) => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ 
   isOpen, 
-  onClose, 
-  onLogin, 
-  users, 
-  onRegister 
+  onClose 
 }) => {
-  const { signInWithGoogle, loginWithEmail, registerWithEmail } = useAuth();
+  const { signInWithGoogle, loginWithEmail, registerWithEmail, isLoading } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -72,8 +67,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         await registerWithEmail({ 
           name: formData.name, 
           email: formData.email, 
-          role: formData.role 
-        }, formData.password);
+          role: formData.role,
+          password: formData.password
+        });
         
         setSuccessMessage('¡Cuenta creada! Revisa tu email para confirmarla.');
         // Don't close immediately so they can read the message
@@ -151,13 +147,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
             <div>
                <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">Contraseña</label>
-               <input 
-                  type="password"
-                  className={inputClass}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-               />
+               <div className="relative">
+                 <input 
+                    type={showPassword ? "text" : "password"}
+                    className={inputClass}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={e => setFormData({...formData, password: e.target.value})}
+                 />
+                 <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                 >
+                    {showPassword ? (
+                      <Icons.EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Icons.Eye className="w-4 h-4" />
+                    )}
+                 </button>
+               </div>
             </div>
 
             {isRegistering && (
@@ -234,18 +243,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <div className="grid grid-cols-2 gap-3 mb-2">
             <button
               type="button"
-              onClick={() => {
-                if (isRegistering) {
-                  localStorage.setItem('casaseg_pending_role', formData.role);
-                } else {
+              disabled={isLoading}
+              onClick={async () => {
+                try {
+                  setError('');
+                  if (isRegistering) {
+                    localStorage.setItem('casaseg_pending_role', formData.role);
+                  } else {
+                    localStorage.removeItem('casaseg_pending_role');
+                  }
+                  await signInWithGoogle();
+                } catch (err) {
+                  console.error(err);
+                  setError('Error al iniciar con Google. Inténtalo de nuevo.');
                   localStorage.removeItem('casaseg_pending_role');
                 }
-                signInWithGoogle().catch(err => {
-                  console.error(err);
-                  setError('Error al iniciar con Google');
-                });
               }}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors bg-white font-medium text-gray-700 text-sm"
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors bg-white font-medium text-gray-700 text-sm ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />

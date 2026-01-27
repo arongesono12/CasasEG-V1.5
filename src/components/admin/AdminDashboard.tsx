@@ -16,32 +16,51 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const { users, currentUser, logout } = useAuth();
-  const { properties, updateProperty } = useProperties();
+  const { properties, deleteProperty } = useProperties();
   const { messages } = useMessaging();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'properties' | 'analytics'>('overview');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
+  // Filter out admins from the display list (only show Clients and Owners)
+  const nonAdminUsers = useMemo(() => {
+     return users.filter(u => u.role !== 'admin');
+  }, [users]);
+
   // Analytics Data
   const userActivities = useMemo(() => 
-    analyticsService.getUserActivities(users, properties, messages), 
-    [users, properties, messages]
+    analyticsService.getUserActivities(nonAdminUsers, properties, messages), 
+    [nonAdminUsers, properties, messages]
   );
-
+  
   const ownerActivities = useMemo(() => 
-    analyticsService.getOwnerActivities(users, properties, messages), 
-    [users, properties, messages]
+    analyticsService.getOwnerActivities(nonAdminUsers, properties, messages), 
+    [nonAdminUsers, properties, messages]
   );
 
   // Stats
   const stats = {
-    totalUsers: users.length,
+    totalUsers: nonAdminUsers.length,
     totalProperties: properties.length,
     activeProperties: properties.filter(p => p.status === 'active').length,
     totalVisits: userActivities.reduce((acc, curr) => acc + curr.propertiesViewed, 0),
-    owners: users.filter(u => u.role === 'owner').length,
+    owners: nonAdminUsers.filter(u => u.role === 'owner').length,
     bounceRate: "32.53%", // Placeholder
     newSessions: "68.8", // Placeholder
+  };
+
+  const handleDeleteProperty = async (propertyId: string, propertyTitle: string) => {
+    if (window.confirm(`¿Estás seguro de que quieres eliminar "${propertyTitle}"? Esta acción no se puede deshacer.`)) {
+      try {
+        await deleteProperty(propertyId);
+        // Ideally, show a toast notification on success
+        alert('Propiedad eliminada con éxito.');
+      } catch (error) {
+        console.error('Error deleting property:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+        alert(`Error al eliminar la propiedad: ${errorMessage}`);
+      }
+    }
   };
 
   const NavItem = ({ id, icon: Icon, label }: { id: typeof activeTab, icon: any, label: string }) => (
@@ -67,11 +86,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Logo Area */}
-        <div className="h-16 flex items-center px-6 bg-[#0f172a]">
-          <div className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
-            <img src={logo} alt="CasasEG Logo" className="h-14 w-auto object-contain" />
-            <span>CasasEG</span>
-          </div>
+        <div className="h-20 flex items-center px-6 mb-2">
+          <button 
+            onClick={() => navigate('/')}
+            className="flex items-center gap-3 group transition-all"
+          >
+            <div className="bg-white/10 p-2 rounded-2xl group-hover:bg-white/20 transition-colors">
+              <img src={logo} alt="CasasEG Logo" className="h-10 w-auto object-contain" />
+            </div>
+            <div className="flex flex-col items-start text-left">
+              <span className="text-white font-black text-lg tracking-tighter leading-none">DASHBOARD</span>
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em] mt-0.5">Control Panel</span>
+            </div>
+          </button>
         </div>
 
         {/* Navigation */}
@@ -196,58 +223,158 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                           />
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                          {/* Main Chart Section (Mock) */}
-                          <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                              <div className="flex items-center justify-between mb-6">
-                                  <h3 className="font-bold text-gray-900 text-lg">Actividad de la Plataforma</h3>
-                                  <div className="flex gap-2">
-                                      <span className="flex items-center gap-1 text-xs font-medium text-gray-500">
-                                          <span className="w-2 h-2 rounded-full bg-blue-500"></span> Esta semana
-                                      </span>
-                                      <span className="flex items-center gap-1 text-xs font-medium text-gray-500">
-                                          <span className="w-2 h-2 rounded-full bg-gray-300"></span> Anterior
-                                      </span>
+                      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                          {/* Main Chart Section */}
+                           <div className="lg:col-span-3 bg-white/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-black/[0.03] border border-white/40">
+                              <div className="flex items-center justify-between mb-8">
+                                  <div>
+                                      <h3 className="font-bold text-gray-900 text-lg">Actividad de la Plataforma</h3>
+                                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Interacciones y Crecimiento Semanal</p>
+                                  </div>
+                                  <div className="flex gap-4">
+                                      <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tráfico Hoy</span>
+                                      </div>
+                                      <select className="bg-gray-50 border-none text-[10px] font-bold uppercase tracking-widest rounded-xl px-3 py-1.5 focus:ring-2 ring-blue-500/20 outline-none">
+                                          <option>Ultimos 7 días</option>
+                                          <option>Ultimos 30 días</option>
+                                      </select>
                                   </div>
                               </div>
                               
-                              <div className="h-64 w-full flex items-end justify-between gap-2 px-2">
-                                  {/* Simple CSS Bar Chart Mock */}
-                                  {[40, 65, 45, 80, 55, 70, 85].map((h, i) => (
-                                      <div key={i} className="w-full bg-blue-50 rounded-t-lg relative group h-full flex items-end">
-                                          <div style={{ height: `${h}%` }} className="w-full bg-blue-500 rounded-t-md transition-all duration-500 group-hover:bg-blue-600"></div>
+                              <div className="h-72 w-full flex items-end justify-between gap-4 px-2">
+                                  {[35, 50, 42, 90, 65, 75, 85].map((h, i) => (
+                                      <div key={i} className="flex-1 flex flex-col items-center gap-3 h-full justify-end">
+                                          <div className="w-full relative group h-full flex items-end">
+                                              {/* Background bar */}
+                                              <div className="absolute inset-x-0 bottom-0 top-0 bg-blue-50/50 rounded-2xl"></div>
+                                              {/* Actual data bar */}
+                                              <div 
+                                                style={{ height: `${h}%` }} 
+                                                className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-2xl transition-all duration-700 relative group-hover:from-blue-700 group-hover:to-blue-500 shadow-lg shadow-blue-500/20"
+                                              >
+                                                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                                      +{h}% crecimiento
+                                                  </div>
+                                              </div>
+                                          </div>
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][i]}</span>
                                       </div>
                                   ))}
-                              </div>
-                              <div className="flex justify-between mt-4 text-xs text-gray-400 font-medium px-2">
-                                  <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
                               </div>
                           </div>
 
-                          {/* Side Widget */}
-                          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                              <h3 className="font-bold text-gray-900 text-lg mb-6">Resumen de Estado</h3>
-                              <div className="bg-blue-600 rounded-xl p-6 text-white relative overflow-hidden mb-6">
-                                  <div className="relative z-10">
-                                      <p className="opacity-80 text-sm mb-1">Propiedades Verificadas</p>
-                                      <h4 className="text-3xl font-bold">{stats.activeProperties}</h4>
-                                  </div>
-                                  <Icons.Sparkles className="absolute -bottom-4 -right-4 w-24 h-24 text-white opacity-10" />
+                          {/* Quick Actions Panel */}
+                          <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-black/[0.03] border border-white/40 flex flex-col">
+                              <h3 className="font-bold text-gray-900 text-lg mb-6">Acciones Rápidas</h3>
+                              <div className="grid grid-cols-1 gap-3">
+                                  <button className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all group">
+                                      <div className="p-2 bg-blue-100 text-blue-600 rounded-xl group-hover:bg-white/10 group-hover:text-white">
+                                          <Icons.Plus className="w-4 h-4" />
+                                      </div>
+                                      <span className="text-xs font-bold uppercase tracking-widest text-left">Nueva Propiedad</span>
+                                  </button>
+                                  <button className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all group">
+                                      <div className="p-2 bg-purple-100 text-purple-600 rounded-xl group-hover:bg-white/10 group-hover:text-white">
+                                          <Icons.Message className="w-4 h-4" />
+                                      </div>
+                                      <span className="text-xs font-bold uppercase tracking-widest text-left">Chat de Soporte</span>
+                                  </button>
+                                  <button className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all group">
+                                      <div className="p-2 bg-orange-100 text-orange-600 rounded-xl group-hover:bg-white/10 group-hover:text-white">
+                                          <Icons.TrendingUp className="w-4 h-4" />
+                                      </div>
+                                      <span className="text-xs font-bold uppercase tracking-widest text-left">Exportar Reporte</span>
+                                  </button>
+                                  <button onClick={() => window.location.reload()} className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all group mt-auto">
+                                      <div className="p-2 bg-green-100 text-green-600 rounded-xl group-hover:bg-white/10 group-hover:text-white">
+                                          <Icons.Check className="w-4 h-4" />
+                                      </div>
+                                      <span className="text-xs font-bold uppercase tracking-widest text-left">Refrescar Datos</span>
+                                  </button>
                               </div>
-                              
-                              <h4 className="font-bold text-gray-900 mb-4">Actividad Reciente</h4>
-                              <div className="space-y-4">
-                                  {messages.slice(0, 3).map((msg) => (
-                                      <div key={msg.id} className="flex gap-3 items-start">
-                                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                                              <Icons.Message className="w-4 h-4 text-gray-500" />
-                                          </div>
-                                          <div>
-                                              <p className="text-sm font-medium text-gray-900 line-clamp-1">{msg.content}</p>
-                                              <p className="text-xs text-gray-500">Hace un momento</p>
+                          </div>
+
+                          {/* Platform Performance metrics */}
+                          <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-black/[0.03] border border-white/40">
+                              <h3 className="font-bold text-gray-900 text-lg mb-8">Rendimiento del Sistema</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div className="space-y-4">
+                                      <div className="flex justify-between items-end">
+                                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Uso de Base de Datos</p>
+                                          <span className="text-xs font-bold text-blue-600">65%</span>
+                                      </div>
+                                      <div className="h-2 bg-blue-50 rounded-full overflow-hidden">
+                                          <div className="h-full bg-blue-500 w-[65%] rounded-full"></div>
+                                      </div>
+                                      
+                                      <div className="flex justify-between items-end mt-6">
+                                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Latencia Media (ms)</p>
+                                          <span className="text-xs font-bold text-green-600">24ms</span>
+                                      </div>
+                                      <div className="h-2 bg-green-50 rounded-full overflow-hidden">
+                                          <div className="h-full bg-green-500 w-[24%] rounded-full"></div>
+                                      </div>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-4">
+                                      <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                          <p className="text-[10px] font-black text-blue-400 uppercase mb-2">Estado API</p>
+                                          <div className="flex items-center gap-2">
+                                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                              <span className="text-sm font-bold text-blue-900 uppercase">Óptimo</span>
                                           </div>
                                       </div>
-                                  ))}
+                                      <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                                          <p className="text-[10px] font-black text-purple-400 uppercase mb-2">Servidores</p>
+                                          <div className="flex items-center gap-2">
+                                              <span className="text-sm font-bold text-purple-900 uppercase">3 Activos</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* Recent Activity Timeline */}
+                          <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-black/[0.03] border border-white/40">
+                              <div className="flex items-center justify-between mb-8">
+                                  <h3 className="font-bold text-gray-900 text-lg">Actividad en Tiempo Real</h3>
+                                  <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Ver Historial</button>
+                              </div>
+                              <div className="space-y-6">
+                                  {/* Activity Item */}
+                                  <div className="flex gap-4 relative">
+                                      <div className="absolute top-8 bottom-0 left-4 w-[2px] bg-gray-100"></div>
+                                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center relative z-10 shrink-0 border-4 border-white shadow-sm">
+                                          <Icons.User className="w-3 h-3 text-blue-600" />
+                                      </div>
+                                      <div>
+                                          <p className="text-xs font-bold text-gray-900">Nuevo Cliente Registrado</p>
+                                          <p className="text-[10px] text-gray-400 font-medium uppercase mt-0.5">Hace 5 minutos • Sistema de Auth</p>
+                                      </div>
+                                  </div>
+                                  {/* Activity Item */}
+                                  <div className="flex gap-4 relative">
+                                      <div className="absolute top-8 bottom-0 left-4 w-[2px] bg-gray-100"></div>
+                                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center relative z-10 shrink-0 border-4 border-white shadow-sm">
+                                          <Icons.Building className="w-3 h-3 text-green-600" />
+                                      </div>
+                                      <div>
+                                          <p className="text-xs font-bold text-gray-900">Propiedad Validada por el Sistema</p>
+                                          <p className="text-[10px] text-gray-400 font-medium uppercase mt-0.5">Hace 12 minutos • Moderación</p>
+                                      </div>
+                                  </div>
+                                  {/* Activity Item */}
+                                  <div className="flex gap-4 relative">
+                                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center relative z-10 shrink-0 border-4 border-white shadow-sm">
+                                          <Icons.Message className="w-3 h-3 text-orange-600" />
+                                      </div>
+                                      <div>
+                                          <p className="text-xs font-bold text-gray-900">Alerta de Seguridad: Login Fallido</p>
+                                          <p className="text-[10px] text-gray-400 font-medium uppercase mt-0.5">Hace 45 minutos • Security Logs</p>
+                                      </div>
+                                  </div>
                               </div>
                           </div>
                       </div>
@@ -271,7 +398,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                                {users.map(user => (
+                                {nonAdminUsers.map(user => (
                                     <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
                                         <div className="p-4 flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
@@ -352,8 +479,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                             </span>
                                         </td>
                                         <td className="p-4 flex gap-2">
-                                            <button className="text-gray-400 hover:text-black">
+                                            <button className="text-gray-400 hover:text-black" title="Editar propiedad">
                                                 <Icons.Settings className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteProperty(property.id, property.title)}
+                                              className="text-gray-400 hover:text-red-600"
+                                              title="Eliminar propiedad">
+                                                <Icons.Delete className="w-4 h-4" />
                                             </button>
                                         </td>
                                     </tr>

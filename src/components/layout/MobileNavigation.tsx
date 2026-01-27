@@ -5,6 +5,7 @@ import { Icons } from '../Icons';
 interface MobileNavigationProps {
   currentUser: User | null;
   onHomeClick: () => void;
+  onPropertiesClick: () => void;
   onMessagesClick: () => void;
   onProfileClick: () => void;
   messageCount: number;
@@ -13,15 +14,20 @@ interface MobileNavigationProps {
 export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   currentUser,
   onHomeClick,
+  onPropertiesClick,
   onMessagesClick,
   onProfileClick,
   messageCount
 }) => {
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center z-40 pb-safe">
-      <button onClick={onHomeClick} className="flex flex-col items-center text-black">
+      <button onClick={onHomeClick} className="flex flex-col items-center text-gray-400">
         <Icons.Home className="w-6 h-6" />
         <span className="text-[10px] font-medium mt-1">Explorar</span>
+      </button>
+      <button onClick={onPropertiesClick} className="flex flex-col items-center text-gray-400 hover:text-black active:text-black">
+        <Icons.Building className="w-6 h-6" />
+        <span className="text-[10px] font-medium mt-1">Propiedades</span>
       </button>
       <button 
         onClick={onMessagesClick} 

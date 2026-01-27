@@ -1,26 +1,28 @@
-import { supabase } from './supabaseClient';
+import { supabase } from '../lib/supabase';
 import { Property, User, Message } from '../types';
 
-// Auth Methods
-export const signInWithGoogle = async (redirectTo?: string) => {
-  const finalRedirect = redirectTo || `${window.location.origin}/`;
-  console.log('Initiating Google Auth with redirect:', finalRedirect);
-  
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: finalRedirect,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
-      }
-    }
-  });
-  if (error) {
-    console.error('Supabase Google Auth Error:', error);
-    throw error;
+/**
+ * UTILITIES
+ */
+const handleError = (error: any) => {
+  if (error?.status === 429 || error?.code === '429') {
+     window.dispatchEvent(new CustomEvent('app:rate-limit'));
   }
-  return data;
+  console.error("Supabase Operation Error:", error);
+  // Don't throw if it's just a 'PostgrestError', return null/empty in caller
+  // But for Auth we generally want to throw.
+};
+
+/**
+ * AUTHENTICATION
+ */
+
+export const signInWithEmail = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+  return { user: data.user, session: data.session, error };
 };
 
 export const signUpWithEmail = async (email: string, password: string, metadata: any) => {
@@ -28,18 +30,22 @@ export const signUpWithEmail = async (email: string, password: string, metadata:
     email,
     password,
     options: {
-      data: metadata,
-      emailRedirectTo: `${window.location.origin}/`
+      data: metadata // stored in user_metadata
     }
   });
-  if (error) throw error;
-  return data;
+  return { user: data.user, session: data.session, error };
 };
 
-export const signInWithEmail = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
+export const signInWithGoogle = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
   });
   if (error) throw error;
   return data;
@@ -47,81 +53,97 @@ export const signInWithEmail = async (email: string, password: string) => {
 
 export const signOut = async () => {
   const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  if (error) console.error('Sign out error:', error);
 };
 
-export const getSession = async () => {
-  const { data, error } = await supabase.auth.getSession();
+export const getCurrentSession = async () => {
+  const { data: { session }, error } = await supabase.auth.getSession();
   if (error) throw error;
-  return data.session;
+  return session;
 };
 
-// Data Methods
-export const fetchUsers = async (): Promise<User[]> => {
+/**
+ * USER PROFILES (Database 'users' table)
+ */
+
+export const getUserById = async (id: string): Promise<User | null> => {
+  const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+  if (error) {
+    if (error.code !== 'PGRST116') { // PGRST116 is "Row not found" - ignore log for this
+      console.warn('Error fetching user profile:', error);
+    }
+    return null;
+  }
+  return data as User;
+};
+
+// Renamed from createUser for clarity, but keeping alias if needed or just using this
+export const createUser = async (user: User): Promise<User | null> => {
+  const { data, error } = await supabase.from('users').upsert(user).select().single();
+  if (error) {
+    console.error('Error creating user profile:', error);
+    return null;
+  }
+  return data as User;
+};
+
+export const getAllUsers = async (): Promise<User[]> => {
   const { data, error } = await supabase.from('users').select('*');
   if (error) {
     console.error('Error fetching users:', error);
     return [];
   }
-  return data as any[];
-};
-
-export const fetchProperties = async (): Promise<Property[]> => {
-  const { data, error } = await supabase.from('properties').select('*');
-  if (error) {
-    console.error('Error fetching properties:', error);
-    return [];
-  }
-  // Ensure fields are arrays if they are null
-  return (data as any[]).map(p => ({
-    ...p,
-    imageUrls: p.imageUrls || [],
-    features: p.features || [],
-    waitingList: p.waitingList || []
-  }));
-};
-
-export const fetchMessages = async (): Promise<Message[]> => {
-  const { data, error } = await supabase.from('messages').select('*');
-  if (error) {
-    console.error('Error fetching messages:', error);
-    return [];
-  }
-  return data as any[];
-};
-
-export const createUser = async (u: Partial<User>) => {
-  const { data, error } = await supabase.from('users').insert(u).select();
-  if (error) throw error;
-  return data;
-};
-
-export const createProperty = async (p: Partial<Property>) => {
-  const { data, error } = await supabase.from('properties').insert(p).select();
-  if (error) throw error;
-  return data;
-};
-
-export const createMessage = async (m: Partial<Message>) => {
-  const { data, error } = await supabase.from('messages').insert(m).select();
-  if (error) throw error;
-  return data;
+  return data as User[];
 };
 
 export const updateUser = async (id: string, updates: Partial<User>) => {
-  const { data, error } = await supabase.from('users').update(updates).eq('id', id).select();
+  const { error } = await supabase.from('users').update(updates).eq('id', id);
   if (error) throw error;
-  return data;
 };
 
-export const updateProperty = async (id: string, updates: Partial<Property>) => {
-  const { data, error } = await supabase.from('properties').update(updates).eq('id', id).select();
+// Legacy shim if something calls it, though we refactored AuthContext
+export const setAuthUser = (_user: User | null) => {};
+
+/**
+ * PROPERTIES
+ */
+
+export const fetchProperties = async (): Promise<Property[]> => {
+  const { data, error } = await supabase.from('properties').select('*').order('created_at', { ascending: false });
+  if (error) {
+    console.error("Error fetching properties:", error);
+    return [];
+  }
+  return data || [];
+};
+
+export const createProperty = async (property: Partial<Property>): Promise<Property[]> => {
+  const { data, error } = await supabase.from('properties').insert([property]).select();
   if (error) throw error;
-  return data;
+  return data || [];
 };
 
-// Helper to keep auth user in sync if needed, though supabase client handles it internally.
-export const setAuthUser = (user: User | null) => {
-  // No-op for now as supabase client manages session state
+export const deleteProperty = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('properties').delete().match({ id });
+  if (error) throw error;
 };
 
+export const updateProperty = async (id: string, updates: Partial<Property>): Promise<void> => {
+  const { error } = await supabase.from('properties').update(updates).eq('id', id);
+  if (error) throw error;
+};
+
+export const updatePropertyResource = updateProperty; // Alias for compatibility
+
+/**
+ * MESSAGES
+ */
+
+export const fetchMessages = async (): Promise<Message[]> => {
+    const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
+    if (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+    }
+    return data || [];
+};
