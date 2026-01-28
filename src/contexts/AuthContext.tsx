@@ -38,8 +38,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
+          console.log('Session found for:', session.user.email);
           await handleUserSession(session);
         } else {
+          console.log('No active session found.');
           setIsLoading(false);
         }
       } catch (error) {
@@ -111,11 +113,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      console.log('User profile loaded:', userProfile);
       setCurrentUser(userProfile);
     } catch (error) {
-      console.error('Error handling user session:', error);
-      // Don't block app, just show no user? or show error?
-      // For now, clear user to be safe
+      console.error('CRITICAL: Error handling user session:', error);
       setCurrentUser(null);
     } finally {
       setIsLoading(false);

@@ -10,6 +10,7 @@ interface PropertyContextType {
   addProperty: (property: Property) => Promise<void>;
   updateProperty: (id: string, updates: Partial<Property>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
+  refreshProperties: () => Promise<void>;
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
@@ -21,7 +22,7 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { data: properties = [], isLoading, error } = useQuery({
     queryKey: ['properties'],
     queryFn: supabaseService.fetchProperties,
-    staleTime: 1000 * 60 * 5, // 5 minutes fresh
+    staleTime: 1000 * 30, // 30 seconds fresh
   });
 
   // 2. Mutations (Optimistic Updates or Invalidation)
@@ -54,23 +55,15 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateProperty = async (id: string, updates: Partial<Property>) => {
-    // Note: supabaseService needs an updateProperty specific for properties table if not generic
-    // Currently supabaseService.updateProperty might be for USERS? Let's check service.
-    // If not exists, we use a generic placeholder or ensure service has it.
-    // Assuming service was updated or we need to add it. 
-    // The previous context implementation assumed `supabaseService.updateProperty` meant for 'properties'?
-    // Wait, in previous context: `setProperties(prev => prev.map...)`. It was local state only?
-    // No, `updateProperty` in context was optimistic? 
-    // Checking `supabaseService.ts`: `createProperty`, `deleteProperty` exist. `updateUser` exists.
-    // `updateProperty` for properties table MISSING in service? 
-    // Ah, `updateUser` is for users table. 
-    // I need to add `updateProperty` to `supabaseService.ts` for this to work fully backend-synced.
-    // For now, I will assume I'll add it.
-    await supabaseService.updatePropertyResource(id, updates); 
+    await updateMutation.mutateAsync({ id, updates }); 
   };
 
   const deletePropertyFn = async (id: string) => {
     await deleteMutation.mutateAsync(id);
+  };
+
+  const refreshProperties = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['properties'] });
   };
 
   return (
@@ -80,7 +73,8 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       error,
       addProperty, 
       updateProperty, 
-      deleteProperty: deletePropertyFn
+      deleteProperty: deletePropertyFn,
+      refreshProperties
     }}>
       {children}
     </PropertyContext.Provider>

@@ -16,11 +16,14 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const { users, currentUser, logout } = useAuth();
-  const { properties, deleteProperty } = useProperties();
+  const { properties, deleteProperty, refreshProperties, updateProperty } = useProperties();
   const { messages } = useMessaging();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'properties' | 'analytics'>('overview');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const { notifications, markAsRead } = useMessaging();
 
   // Filter out admins from the display list (only show Clients and Owners)
   const nonAdminUsers = useMemo(() => {
@@ -53,13 +56,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar "${propertyTitle}"? Esta acción no se puede deshacer.`)) {
       try {
         await deleteProperty(propertyId);
-        // Ideally, show a toast notification on success
         alert('Propiedad eliminada con éxito.');
       } catch (error) {
         console.error('Error deleting property:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-        alert(`Error al eliminar la propiedad: ${errorMessage}`);
+        alert(`Error al eliminar la propiedad.`);
       }
+    }
+  };
+
+  const handleToggleStatus = async (property: Property) => {
+    const newStatus = property.status === 'active' ? 'suspended' : 'active';
+    try {
+      await updateProperty(property.id, { status: newStatus as any });
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      alert('Error al cambiar el estado de la propiedad.');
     }
   };
 
@@ -165,10 +176,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   </div>
                   
                   <div className="flex items-center gap-3">
-                      <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                      <button 
+                        onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                        className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                      >
                           <Icons.Bell className="w-5 h-5" />
-                          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                          {notifications.some(n => !n.read) && (
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                          )}
                       </button>
+
+                      {/* Notifications Dropdown */}
+                      {isNotificationsOpen && (
+                        <div className="absolute top-16 right-20 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 animate-fade-in py-4">
+                           <div className="px-6 pb-2 border-b border-gray-50 flex justify-between items-center">
+                              <h4 className="font-bold text-gray-900 text-sm">Notificaciones</h4>
+                              <button className="text-[10px] text-blue-600 font-bold uppercase">Marcar todas</button>
+                           </div>
+                           <div className="max-h-64 overflow-y-auto mt-2">
+                              {notifications.length > 0 ? notifications.map(n => (
+                                <div key={n.id} onClick={() => markAsRead(n.id)} className={`px-6 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${!n.read ? 'bg-blue-50/30' : ''}`}>
+                                  <p className="text-xs text-gray-800 font-medium">{n.message}</p>
+                                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold">{new Date(n.created_at).toLocaleDateString()}</p>
+                                </div>
+                              )) : (
+                                <div className="p-6 text-center text-gray-400 text-xs font-medium">No tienes notificaciones hoy</div>
+                              )}
+                           </div>
+                        </div>
+                      )}
                       
                       {currentUser && (
                         <UserDropdown 
@@ -287,7 +323,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                       </div>
                                       <span className="text-xs font-bold uppercase tracking-widest text-left">Exportar Reporte</span>
                                   </button>
-                                  <button onClick={() => window.location.reload()} className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all group mt-auto">
+                                  <button onClick={() => refreshProperties()} className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all group mt-auto">
                                       <div className="p-2 bg-green-100 text-green-600 rounded-xl group-hover:bg-white/10 group-hover:text-white">
                                           <Icons.Check className="w-4 h-4" />
                                       </div>
@@ -400,15 +436,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             <tbody className="divide-y divide-gray-50">
                                 {nonAdminUsers.map(user => (
                                     <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
-                                        <div className="p-4 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
-                                                {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover"/> : null}
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                                                    {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover"/> : null}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-gray-900">{user.name}</p>
+                                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-medium text-gray-900">{user.name}</p>
-                                                <p className="text-xs text-gray-500">{user.email}</p>
-                                            </div>
-                                        </div>
+                                        </td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase
                                                 ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
@@ -479,7 +517,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                             </span>
                                         </td>
                                         <td className="p-4 flex gap-2">
-                                            <button className="text-gray-400 hover:text-black" title="Editar propiedad">
+                                            <button 
+                                              onClick={() => handleToggleStatus(property)}
+                                              className={`${property.status === 'active' ? 'text-orange-400 hover:text-orange-600' : 'text-green-400 hover:text-green-600'}`} 
+                                              title={property.status === 'active' ? "Suspender vivienda" : "Activar vivienda"}
+                                            >
+                                                {property.status === 'active' ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />}
+                                            </button>
+                                            <button 
+                                              onClick={() => setEditingProperty(property)}
+                                              className="text-gray-400 hover:text-black" 
+                                              title="Editar propiedad"
+                                            >
                                                 <Icons.Settings className="w-4 h-4" />
                                             </button>
                                             <button
@@ -554,6 +603,126 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               )}
 
           </main>
+      </div>
+
+      {editingProperty && (
+        <PropertyEditModal 
+          property={editingProperty} 
+          onClose={() => setEditingProperty(null)} 
+          onSave={async (updates) => {
+            await updateProperty(editingProperty.id, updates);
+            setEditingProperty(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// --- SUBCOMPONENTS ---
+
+interface PropertyEditModalProps {
+  property: Property;
+  onClose: () => void;
+  onSave: (updates: Partial<Property>) => Promise<void>;
+}
+
+const PropertyEditModal: React.FC<PropertyEditModalProps> = ({ property, onClose, onSave }) => {
+  const [formData, setFormData] = useState({ ...property });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+    } catch (err) {
+      alert('Error al guardar los cambios');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-900">Editar Vivienda</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <Icons.Close className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Título de la Propiedad</label>
+              <input 
+                type="text" 
+                value={formData.title} 
+                onChange={e => setFormData({...formData, title: e.target.value})}
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 ring-blue-500/20 outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Precio (FCA)</label>
+              <input 
+                type="number" 
+                value={formData.price} 
+                onChange={e => setFormData({...formData, price: Number(e.target.value)})}
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 ring-blue-500/20 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Descripción</label>
+            <textarea 
+              rows={4}
+              value={formData.description} 
+              onChange={e => setFormData({...formData, description: e.target.value})}
+              className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 ring-blue-500/20 outline-none resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Camas</label>
+              <input type="number" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: Number(e.target.value)})} className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm"/>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Baños</label>
+              <input type="number" value={formData.bathrooms} onChange={e => setFormData({...formData, bathrooms: Number(e.target.value)})} className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm"/>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Área (m²)</label>
+              <input type="number" value={formData.area} onChange={e => setFormData({...formData, area: Number(e.target.value)})} className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm"/>
+            </div>
+             <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Estado</label>
+              <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm">
+                <option value="active">Activa (Pública)</option>
+                <option value="suspended">Suspendida (Oculta)</option>
+              </select>
+            </div>
+          </div>
+        </form>
+
+        <div className="px-8 py-6 border-t border-gray-100 flex gap-4 bg-gray-50/50">
+          <button 
+            onClick={onClose}
+            className="flex-1 py-3 px-6 rounded-2xl font-bold text-gray-500 hover:bg-gray-100 transition-all text-sm uppercase tracking-widest"
+          >
+            Cancelar
+          </button>
+          <button 
+            onClick={handleSubmit}
+            disabled={isSaving}
+            className="flex-[2] py-3 px-6 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
+          >
+            {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+          </button>
+        </div>
       </div>
     </div>
   );
