@@ -105,36 +105,41 @@ export const optimizeImage = async (
 };
 
 /**
+ * Converts a data URL to a File object
+ */
+export const dataURLtoFile = (dataurl: string, filename: string): File => {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+};
+
+/**
+ * Optimizes an image and returns a File object for upload
+ */
+export const optimizeImageForUpload = async (
+  file: File,
+  filename: string,
+  options: OptimizeOptions = {}
+): Promise<File> => {
+  const dataUrl = await optimizeImage(file, {
+    maxWidth: 1200,
+    maxHeight: 1200,
+    quality: 0.8,
+    format: 'jpeg',
+    ...options
+  });
+  return dataURLtoFile(dataUrl, filename);
+};
+/**
  * Validates if a file is a valid image
  */
 export const isValidImageFile = (file: File): boolean => {
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
   return validTypes.includes(file.type);
-};
-
-/**
- * Optimizes multiple images for property listings
- * @param files - Array of image files
- * @returns Promise with array of optimized images as base64
- */
-export const optimizePropertyImages = async (
-  files: File[]
-): Promise<string[]> => {
-  if (files.length > 10) {
-    throw new Error('Máximo 10 imágenes permitidas');
-  }
-
-  const optimizedImages: string[] = [];
-  
-  for (const file of files) {
-    const optimized = await optimizeImage(file, {
-      maxWidth: 800,
-      maxHeight: 600,
-      quality: 0.8,
-      format: 'jpeg'
-    });
-    optimizedImages.push(optimized);
-  }
-
-  return optimizedImages;
 };

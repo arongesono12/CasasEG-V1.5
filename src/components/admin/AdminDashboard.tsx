@@ -8,6 +8,7 @@ import { UserDropdown } from '../layout/UserDropdown';
 import { useNavigate } from 'react-router-dom';
 import * as supabaseService from '../../services/supabaseService';
 import * as analyticsService from '../../services/analyticsService';
+import { optimizeImageForUpload } from '../../utils/imageOptimizer';
 import logo from '../../assets/logo/logo.png';
 
 interface AdminDashboardProps {
@@ -24,6 +25,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const { notifications, markAsRead } = useMessaging();
+
+  // Filter logic:
+  // - Superadmin sees everyone (not self)
+  // - Admin sees Clients and Owners (not other admins or superadmins)
+  const filteredUsers = useMemo(() => {
+    if (!currentUser) return [];
+    return users.filter(u => {
+      if (u.id === currentUser.id) return false;
+      if (currentUser.role === 'superadmin') return true;
+      if (currentUser.role === 'admin') return u.role !== 'admin' && u.role !== 'superadmin';
+      return false;
+    });
+  }, [users, currentUser]);
 
   // Filter out admins from the display list (only show Clients and Owners)
   const nonAdminUsers = useMemo(() => {
@@ -50,6 +64,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     owners: nonAdminUsers.filter(u => u.role === 'owner').length,
     bounceRate: "32.53%", // Placeholder
     newSessions: "68.8", // Placeholder
+  };
+
+  const handleUpdateStatus = async (userId: string, currentStatus: any) => {
+    const nextStatus = currentStatus === 'inactive' ? 'active' : 'inactive';
+    try {
+      await supabaseService.updateUserStatus(userId, nextStatus as any);
+      alert(`Usuario ${nextStatus === 'active' ? 'activado' : 'desactivado'} correctamente.`);
+      refreshProperties(); // Or refresh users if a generic refresh exists
+    } catch (e) {
+      alert('Error actualizando estado');
+    }
+  };
+
+  const handlePromoteToOwner = async (userId: string) => {
+    if (window.confirm('¿Deseas convertir este cliente en PROPIETARIO?')) {
+      try {
+        await supabaseService.promoteUserToOwner(userId);
+        alert('Usuario ascendido a Propietario.');
+      } catch (e) {
+        alert('Error ascendiendo usuario');
+      }
+    }
   };
 
   const handleDeleteProperty = async (propertyId: string, propertyTitle: string) => {
@@ -332,45 +368,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                               </div>
                           </div>
 
-                          {/* Platform Performance metrics */}
-                          <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-black/[0.03] border border-white/40">
-                              <h3 className="font-bold text-gray-900 text-lg mb-8">Rendimiento del Sistema</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                  <div className="space-y-4">
-                                      <div className="flex justify-between items-end">
-                                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Uso de Base de Datos</p>
-                                          <span className="text-xs font-bold text-blue-600">65%</span>
-                                      </div>
-                                      <div className="h-2 bg-blue-50 rounded-full overflow-hidden">
-                                          <div className="h-full bg-blue-500 w-[65%] rounded-full"></div>
-                                      </div>
-                                      
-                                      <div className="flex justify-between items-end mt-6">
-                                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Latencia Media (ms)</p>
-                                          <span className="text-xs font-bold text-green-600">24ms</span>
-                                      </div>
-                                      <div className="h-2 bg-green-50 rounded-full overflow-hidden">
-                                          <div className="h-full bg-green-500 w-[24%] rounded-full"></div>
-                                      </div>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-2 gap-4">
-                                      <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                                          <p className="text-[10px] font-black text-blue-400 uppercase mb-2">Estado API</p>
-                                          <div className="flex items-center gap-2">
-                                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                              <span className="text-sm font-bold text-blue-900 uppercase">Óptimo</span>
-                                          </div>
-                                      </div>
-                                      <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100">
-                                          <p className="text-[10px] font-black text-purple-400 uppercase mb-2">Servidores</p>
-                                          <div className="flex items-center gap-2">
-                                              <span className="text-sm font-bold text-purple-900 uppercase">3 Activos</span>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
+                           {/* Technical Health - ONLY FOR SUPERADMIN */}
+                           {currentUser?.role === 'superadmin' && (
+                            <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-black/[0.03] border border-white/40">
+                                <div className="flex items-center justify-between mb-8">
+                                    <h3 className="font-bold text-gray-900 text-lg">Estado Técnico de DB</h3>
+                                    <Icons.Settings className="w-5 h-5 text-gray-400" />
+                                </div>
+                                <div className="space-y-6">
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-end">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Latencia Media (ms)</p>
+                                            <span className="text-xs font-bold text-green-600">24ms</span>
+                                        </div>
+                                        <div className="h-2 bg-green-50 rounded-full overflow-hidden">
+                                            <div className="h-full bg-green-500 w-[24%] rounded-full"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                            <p className="text-[10px] font-black text-blue-400 uppercase mb-2">Estado API</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                                <span className="text-sm font-bold text-blue-900 uppercase">Óptimo</span>
+                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                                            <p className="text-[10px] font-black text-purple-400 uppercase mb-2">Servidores</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-purple-900 uppercase">3 Activos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                           )}
 
                           {/* Recent Activity Timeline */}
                           <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-black/[0.03] border border-white/40">
@@ -434,7 +467,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                                {nonAdminUsers.map(user => (
+                                {filteredUsers.map(user => (
                                     <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
@@ -442,30 +475,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                                     {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover"/> : null}
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-gray-900">{user.name}</p>
-                                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                                    <p className="font-medium text-gray-900 line-clamp-1">{user.name}</p>
+                                                    <p className="text-[10px] text-gray-500 line-clamp-1">{user.email}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase
+                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase
                                                 ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
-                                                  user.role === 'owner' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}
+                                                  user.role === 'owner' ? 'bg-blue-100 text-blue-700' : 
+                                                  user.role === 'superadmin' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}
                                             `}>
                                                 {user.role}
                                             </span>
                                         </td>
                                         <td className="p-4">
-                                            <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span> Activo
+                                            <span className={`flex items-center gap-1.5 text-xs font-bold uppercase ${
+                                              (user as any).status === 'inactive' ? 'text-red-500' : 'text-green-600'
+                                            }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                                  (user as any).status === 'inactive' ? 'bg-red-500' : 'bg-green-600'
+                                                }`}></span>
+                                                {(user as any).status || 'active'}
                                             </span>
                                         </td>
                                         <td className="p-4">
-                                            {user.role !== 'admin' && (
-                                                <button className="text-gray-400 hover:text-blue-600" title="Editar">
-                                                    <Icons.Settings className="w-4 h-4" />
+                                            <div className="flex items-center gap-3">
+                                              <button 
+                                                onClick={() => handleUpdateStatus(user.id, (user as any).status)}
+                                                className={`text-xs font-bold uppercase transition-colors ${
+                                                  (user as any).status === 'inactive' ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-red-600'
+                                                }`}
+                                              >
+                                                {(user as any).status === 'inactive' ? 'Activar' : 'Cerrar'}
+                                              </button>
+                                              {user.role === 'client' && (
+                                                <button 
+                                                  onClick={() => handlePromoteToOwner(user.id)}
+                                                  className="text-xs font-bold uppercase text-blue-600 hover:text-blue-700"
+                                                >
+                                                  Ascender
                                                 </button>
-                                            )}
+                                              )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -630,6 +682,35 @@ interface PropertyEditModalProps {
 const PropertyEditModal: React.FC<PropertyEditModalProps> = ({ property, onClose, onSave }) => {
   const [formData, setFormData] = useState({ ...property });
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []) as File[];
+    if (files.length === 0) return;
+
+    setUploadProgress(0);
+    try {
+      const newUrls = [...formData.imageUrls];
+      for (let i = 0; i < files.length; i++) {
+        setUploadProgress(Math.round((i / files.length) * 100));
+        const optimized = await optimizeImageForUpload(files[i], files[i].name);
+        const url = await supabaseService.uploadPropertyImage(optimized);
+        newUrls.push(url);
+      }
+      setFormData({ ...formData, imageUrls: newUrls });
+    } catch (err) {
+      alert('Error subiendo imágenes');
+    } finally {
+      setUploadProgress(null);
+    }
+  };
+
+  const removeImage = (urlToRemove: string) => {
+    setFormData({
+      ...formData,
+      imageUrls: formData.imageUrls.filter(url => url !== urlToRemove)
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -673,6 +754,34 @@ const PropertyEditModal: React.FC<PropertyEditModalProps> = ({ property, onClose
                 className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 ring-blue-500/20 outline-none"
               />
             </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Imágenes de la Propiedad</label>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {formData.imageUrls.map((url, index) => (
+                <div key={index} className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100">
+                  <img src={url} className="w-full h-full object-cover" />
+                  <button 
+                    type="button"
+                    onClick={() => removeImage(url)}
+                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Icons.Close className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <label className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all">
+                <input type="file" multiple onChange={handleImageUpload} className="hidden" accept="image/*" />
+                <Icons.Plus className="w-6 h-6 text-gray-400" />
+                <span className="text-[9px] font-bold text-gray-400 uppercase mt-1">Añadir</span>
+              </label>
+            </div>
+            {uploadProgress !== null && (
+              <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

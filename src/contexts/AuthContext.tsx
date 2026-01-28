@@ -17,9 +17,10 @@ interface AuthContextType {
   
   // Profile Actions
   updateProfile: (data: Partial<User>) => Promise<void>;
+  sendResetPasswordEmail: (email: string) => Promise<void>;
   
-  // Legacy support (optional, can be removed if not used)
-  users: User[]; // Keeping empty array to avoid breaking UI that maps this
+  // Legacy support
+  users: User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -93,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('casaseg_pending_role');
 
         const isSpecificAdmin = session.user.email === 'arongesono@outlook.es';
-        const finalRole: UserRole = isSpecificAdmin ? 'admin' : (pendingRole || 'client');
+        const finalRole: UserRole = isSpecificAdmin ? 'superadmin' : (pendingRole || 'client');
         
         const metadata = session.user.user_metadata || {};
         const newProfile: User = {
@@ -187,8 +188,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabaseService.updateUser(currentUser.id, data);
     } catch (error) {
       console.error('Failed to update profile:', error);
-      // Revert if needed, but usually fine to keep local state for UX
     }
+  };
+
+  const sendResetPasswordEmail = async (email: string) => {
+    await supabaseService.resetPasswordForEmail(email);
   };
 
   return (
@@ -200,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signInWithGoogle,
       logout,
       updateProfile,
+      sendResetPasswordEmail,
       users,
     }}>
       {children}

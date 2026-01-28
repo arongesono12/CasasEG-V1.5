@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Property } from '../../types';
 import { Icons } from '../Icons';
 import { Button } from '../ui';
-import { optimizePropertyImages, isValidImageFile } from '../../utils/imageOptimizer';
+import { optimizeImageForUpload, isValidImageFile } from '../../utils/imageOptimizer';
 import * as supabaseService from '../../services/supabaseService';
 import { MapLocationPicker } from '../maps/MapLocationPicker'; // Import
 
@@ -151,13 +151,25 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
     setUploadProgress(10);
     
     try {
-      // Optimize images
-      setUploadProgress(30);
-      const optimizedImages = await optimizePropertyImages(formData.imageFiles);
+      // Optimize and Upload images
+      const imageUrls: string[] = [];
+      const totalImages = formData.imageFiles.length;
       
-      setUploadProgress(60);
+      for (let i = 0; i < totalImages; i++) {
+        const file = formData.imageFiles[i];
+        setUploadProgress(Math.round(20 + (i / totalImages) * 60)); // 20% to 80% range for uploads
+        
+        // 1. Optimize
+        const optimizedFile = await optimizeImageForUpload(file, file.name);
+        
+        // 2. Upload to Storage
+        const publicUrl = await supabaseService.uploadPropertyImage(optimizedFile);
+        imageUrls.push(publicUrl);
+      }
       
-      // Create property
+      setUploadProgress(85);
+      
+      // Create property in DB
       const propertyData: Partial<Property> = {
         title: formData.title,
         location: formData.location,
@@ -168,12 +180,12 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
         area: parseInt(formData.area),
         description: formData.description,
         features: formData.features,
-        imageUrls: optimizedImages,
+        imageUrls: imageUrls,
         status: 'active',
         rating: 0
       };
       
-      setUploadProgress(80);
+      setUploadProgress(95);
       await supabaseService.createProperty(propertyData);
       
       setUploadProgress(100);

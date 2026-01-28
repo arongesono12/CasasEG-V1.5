@@ -136,6 +136,16 @@ export const signOut = async () => {
   if (error) console.error("Sign out error:", error);
 };
 
+export const resetPasswordForEmail = async (email: string) => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) {
+    handleError(error, "resetPasswordForEmail");
+    throw error;
+  }
+};
+
 export const getCurrentSession = async () => {
   const {
     data: { session },
@@ -191,6 +201,22 @@ export const getAllUsers = async (): Promise<User[]> => {
 export const updateUser = async (id: string, updates: Partial<User>) => {
   const { error } = await supabase.from("users").update(updates).eq("id", id);
   if (error) throw error;
+};
+
+export const updateUserStatus = async (id: string, status: 'active' | 'inactive' | 'banned') => {
+  const { error } = await supabase.from("users").update({ status }).eq("id", id);
+  if (error) {
+    handleError(error, "updateUserStatus");
+    throw error;
+  }
+};
+
+export const promoteUserToOwner = async (id: string) => {
+  const { error } = await supabase.from("users").update({ role: 'owner' }).eq("id", id);
+  if (error) {
+    handleError(error, "promoteUserToOwner");
+    throw error;
+  }
 };
 
 // Legacy shim if something calls it, though we refactored AuthContext
@@ -302,4 +328,27 @@ export const createNotification = async (notification: any) => {
     .insert([notification]);
   
   if (error) handleError(error, "createNotification");
+};
+/**
+ * STORAGE
+ */
+export const uploadPropertyImage = async (file: File): Promise<string> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { data, error } = await supabase.storage
+    .from('propiedades-images')
+    .upload(filePath, file);
+
+  if (error) {
+    handleError(error, "uploadPropertyImage");
+    throw error;
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('propiedades-images')
+    .getPublicUrl(filePath);
+
+  return publicUrl;
 };

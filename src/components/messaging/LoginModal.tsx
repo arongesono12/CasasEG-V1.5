@@ -16,8 +16,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   const { signInWithGoogle, loginWithEmail, registerWithEmail, isLoading } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { sendResetPasswordEmail } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -33,6 +35,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setError('');
       setSuccessMessage('');
       setIsRegistering(false);
+      setIsForgotPassword(false);
     }
   }, [isOpen]);
 
@@ -76,6 +79,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       } catch (err: any) {
         setError(err.message || 'Error al registrarse');
       }
+    } else if (isForgotPassword) {
+      // RESET PASSWORD
+      if (!formData.email) {
+        setError('Por favor ingresa tu email');
+        return;
+      }
+      try {
+        await sendResetPasswordEmail(formData.email);
+        setSuccessMessage('Email de recuperación enviado. Revisa tu bandeja de entrada.');
+      } catch (err: any) {
+        setError(err.message || 'Error al enviar el email');
+      }
     } else {
       // LOGIN
       if (!formData.email || !formData.password) {
@@ -113,10 +128,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                <img src={logo} alt="CasasEG" className="h-24 w-auto object-contain" />
             </div>
             <h1 className="text-xl font-bold text-center text-gray-800">
-              {isRegistering ? 'Crear Cuenta' : 'Bienvenido de nuevo'}
+              {isForgotPassword ? 'Recuperar Cuenta' : isRegistering ? 'Crear Cuenta' : 'Bienvenido de nuevo'}
             </h1>
             <p className="text-center text-gray-500 text-xs mt-1">
-              {isRegistering ? 'Únete a la comunidad de CasasEG' : 'Accede a tu cuenta para continuar'}
+              {isForgotPassword ? 'Te enviaremos un email para resetear tu clave' : isRegistering ? 'Únete a la comunidad de CasasEG' : 'Accede a tu cuenta para continuar'}
             </p>
           </div>
           
@@ -145,29 +160,40 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                />
             </div>
 
-            <div>
-               <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">Contraseña</label>
-               <div className="relative">
-                 <input 
-                    type={showPassword ? "text" : "password"}
-                    className={inputClass}
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={e => setFormData({...formData, password: e.target.value})}
-                 />
-                 <button
+            {!isForgotPassword && (
+              <div>
+                <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">Contraseña</label>
+                <div className="relative">
+                  <input 
+                      type={showPassword ? "text" : "password"}
+                      className={inputClass}
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={e => setFormData({...formData, password: e.target.value})}
+                  />
+                  <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                      {showPassword ? (
+                        <Icons.EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Icons.Eye className="w-4 h-4" />
+                      )}
+                  </button>
+                </div>
+                {!isRegistering && (
+                  <button 
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                 >
-                    {showPassword ? (
-                      <Icons.EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Icons.Eye className="w-4 h-4" />
-                    )}
-                 </button>
-               </div>
-            </div>
+                    onClick={() => setIsForgotPassword(true)}
+                    className="mt-2 ml-2 text-[10px] font-bold text-gray-400 uppercase hover:text-black transition-colors"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
+              </div>
+            )}
 
             {isRegistering && (
                <div className="animate-fade-in pt-2">
@@ -213,20 +239,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
             <div className="pt-2">
               <Button type="submit" onClick={() => {}} variant="brand" className="w-full py-3 text-base">
-                 {isRegistering ? 'Registrarse' : 'Iniciar Sesión'}
+                 {isForgotPassword ? 'Enviar Correo' : isRegistering ? 'Registrarse' : 'Iniciar Sesión'}
               </Button>
             </div>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              {isRegistering ? '¿Ya tienes una cuenta?' : '¿No tienes cuenta?'}
+              {isForgotPassword ? '¿Recordaste tu contraseña?' : isRegistering ? '¿Ya tienes una cuenta?' : '¿No tienes cuenta?'}
               <button 
                 type="button"
-                onClick={() => setIsRegistering(!isRegistering)}
+                onClick={() => {
+                  if (isForgotPassword) {
+                    setIsForgotPassword(false);
+                  } else {
+                    setIsRegistering(!isRegistering);
+                  }
+                }}
                 className="ml-2 font-bold text-black hover:underline focus:outline-none"
               >
-                {isRegistering ? 'Inicia sesión' : 'Regístrate'}
+                {isForgotPassword ? 'Inicia sesión' : isRegistering ? 'Inicia sesión' : 'Regístrate'}
               </button>
             </p>
           </div>
