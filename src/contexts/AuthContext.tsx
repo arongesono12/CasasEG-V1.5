@@ -34,36 +34,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize Auth State
   useEffect(() => {
     let mounted = true;
+    
+    // Safety timeout to prevent infinite loading
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && isLoading) {
+        console.warn('Auth initialization taking too long, forcing loading to false');
+        setIsLoading(false);
+      }
+    }, 8000);
 
-    const initializeAuth = async () => {
+    const initialize = async () => {
       try {
+        console.log('Initializing Auth State...');
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          console.log('Session found for:', session.user.email);
-          await handleUserSession(session);
-        } else {
-          console.log('No active session found.');
-          setIsLoading(false);
+        
+        if (mounted) {
+          if (session) {
+            await handleUserSession(session);
+          } else {
+            console.log('No session found');
+            setIsLoading(false);
+          }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        setIsLoading(false);
+        console.error('Error during auth initialization:', error);
+        if (mounted) setIsLoading(false);
       }
     };
     
-    // Fetch users for admin/public directories (simplified)
-    const loadUsers = async () => {
+    const loadUsersData = async () => {
+      try {
         const allUsers = await supabaseService.getAllUsers();
         if (mounted && allUsers) setUsers(allUsers);
+      } catch (e) {
+        console.error('Failed to load users list:', e);
+      }
     };
 
-    initializeAuth();
-    loadUsers();
+    initialize();
+    loadUsersData();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth State Change Event:', event);
       if (!mounted) return;
       
-      if (session?.user) {
+      if (session) {
         await handleUserSession(session);
       } else {
         setCurrentUser(null);
@@ -73,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -110,12 +126,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userProfile = createdUser;
         } else {
           // Fallback if DB insert fails but Auth succeeds (should rarely happen)
-           userProfile = newProfile;
+          userProfile = newProfile;
         }
       }
 
+      // 3. Ensure superadmin role for the specific administrative email
+      if (userProfile && session.user.email === 'arongesono@outlook.es' && userProfile.role !== 'superadmin') {
+        console.log('Enforcing superadmin role for admin email...');
+        userProfile.role = 'superadmin';
+        // Force update DB to ensure consistency
+        await supabaseService.updateUser(userProfile.id, { role: 'superadmin' });
+      }
+
       console.log('User profile loaded:', userProfile);
-      setCurrentUser(userProfile);
+      if (userProfile) setCurrentUser(userProfile);
     } catch (error) {
       console.error('CRITICAL: Error handling user session:', error);
       setCurrentUser(null);

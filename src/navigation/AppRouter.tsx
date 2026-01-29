@@ -24,6 +24,8 @@ const LoadingScreen = () => (
   </div>
 );
 
+const TermsPage = React.lazy(() => import('../pages/TermsPage').then(module => ({ default: module.TermsPage })));
+
 const AnimatedRoutes = () => {
   const location = useLocation();
   const { currentUser, isLoading } = useAuth();
@@ -38,6 +40,7 @@ const AnimatedRoutes = () => {
 
         <Route path="/" element={<HomePage />} />
         <Route path="/properties" element={<PropertiesPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         
         <Route 
           path="/property/:id" 
@@ -58,7 +61,7 @@ const AnimatedRoutes = () => {
         
         <Route 
           path="/admin" 
-          element={currentUser?.role === 'admin' ? <AdminDashboard onBack={() => window.history.back()} /> : <Navigate to="/" />} 
+          element={(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') ? <AdminDashboard onBack={() => window.history.back()} /> : <Navigate to="/" />} 
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />

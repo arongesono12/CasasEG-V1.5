@@ -4,6 +4,8 @@ import { Icons } from '../Icons';
 import { Button } from '../ui';
 import { optimizeImageForUpload, isValidImageFile } from '../../utils/imageOptimizer';
 import * as supabaseService from '../../services/supabaseService';
+import { useAuth } from '../../contexts/AuthContext';
+import { useProperties } from '../../contexts/PropertyContext';
 import { MapLocationPicker } from '../maps/MapLocationPicker'; // Import
 
 interface PropertyUploadModalProps {
@@ -15,6 +17,8 @@ interface PropertyUploadModalProps {
 type Step = 1 | 2 | 3 | 4;
 
 export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const { currentUser } = useAuth();
+  const { addProperty } = useProperties();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -171,6 +175,7 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
       
       // Create property in DB
       const propertyData: Partial<Property> = {
+        ownerId: currentUser?.id || '',
         title: formData.title,
         location: formData.location,
         coordinates: formData.coordinates,
@@ -186,7 +191,7 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
       };
       
       setUploadProgress(95);
-      await supabaseService.createProperty(propertyData);
+      await addProperty(propertyData as Property);
       
       setUploadProgress(100);
       
@@ -220,6 +225,7 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
     setCurrentStep(1);
     setError('');
     setUploadProgress(0);
+    setFormData(prev => ({ ...prev, coordinates: undefined })); // Reset coordinates
   };
 
   const inputClass = "w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all";
@@ -415,7 +421,12 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
                     type="text"
                     value={featureInput}
                     onChange={(e) => setFeatureInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addFeature();
+                      }
+                    }}
                     className={inputClass}
                     placeholder="Ej: Piscina, Jardín, Garaje..."
                     maxLength={50}
@@ -446,8 +457,8 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
                 <h3 className="font-bold text-gray-900 mb-2">Resumen</h3>
                 <div className="space-y-1 text-sm text-gray-600">
                   <p>📍 {formData.location}</p>
-                  <p>💰 {parseInt(formData.price).toLocaleString()} FCA/mes</p>
-                  <p>🛏️ {formData.bedrooms} hab. • 🚿 {formData.bathrooms} baños • 📐 {formData.area}m²</p>
+                  <p>💰 {(Number(formData.price) || 0).toLocaleString()} FCA/mes</p>
+                  <p>🛏️ {formData.bedrooms || 0} hab. • 🚿 {formData.bathrooms || 0} baños • 📐 {formData.area || 0}m²</p>
                   <p>📸 {formData.imageFiles.length} imágenes</p>
                 </div>
               </div>

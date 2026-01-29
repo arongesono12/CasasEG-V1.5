@@ -260,6 +260,7 @@ export const updateProperty = async (
   updates: Partial<Property>,
 ): Promise<void> => {
   const dbUpdates = mapPropertyToDb(updates);
+  delete dbUpdates.id; // Never update the primary key
   const { error } = await supabase
     .from("properties")
     .update(dbUpdates)

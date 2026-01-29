@@ -662,8 +662,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           property={editingProperty} 
           onClose={() => setEditingProperty(null)} 
           onSave={async (updates) => {
-            await updateProperty(editingProperty.id, updates);
-            setEditingProperty(null);
+            try {
+              await updateProperty(editingProperty.id, updates);
+              setEditingProperty(null);
+            } catch (error: any) {
+              console.error('Error saving property changes:', error);
+              alert('Error al guardar: ' + (error.message || 'Error desconocido'));
+            }
           }}
         />
       )}
@@ -753,6 +758,29 @@ const PropertyEditModal: React.FC<PropertyEditModalProps> = ({ property, onClose
                 onChange={e => setFormData({...formData, price: Number(e.target.value)})}
                 className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 ring-blue-500/20 outline-none"
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Ubicación</label>
+              <input 
+                type="text" 
+                value={formData.location} 
+                onChange={e => setFormData({...formData, location: e.target.value})}
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 ring-blue-500/20 outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Categoría</label>
+              <select 
+                value={formData.category || 'Apartamentos'} 
+                onChange={e => setFormData({...formData, category: e.target.value})}
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 ring-blue-500/20 outline-none"
+              >
+                <option value="Apartamentos">Apartamentos</option>
+                <option value="Villas">Villas</option>
+                <option value="Habitaciones">Habitaciones</option>
+                <option value="Lujo">Lujo</option>
+                <option value="Cerca del Mar">Cerca del Mar</option>
+              </select>
             </div>
           </div>
 

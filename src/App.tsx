@@ -1,24 +1,16 @@
-import React from 'react';
-import { AuthProvider } from './contexts/AuthContext';
-import { PropertyProvider } from './contexts/PropertyContext';
-import { MessagingProvider } from './contexts/MessagingContext';
+import { useEffect } from 'react';
 import { AppRouter } from './navigation/AppRouter';
-
 import { ConnectivityHandler } from './components/ConnectivityHandler';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { trackVisit } from './services/visitService';
 
 export default function App() {
+  useEffect(() => {
+    trackVisit();
+  }, []);
+
   return (
-    <ErrorBoundary>
-      <ConnectivityHandler>
-        <AuthProvider>
-          <PropertyProvider>
-            <MessagingProvider>
-              <AppRouter />
-            </MessagingProvider>
-          </PropertyProvider>
-        </AuthProvider>
-      </ConnectivityHandler>
-    </ErrorBoundary>
+    <ConnectivityHandler>
+      <AppRouter />
+    </ConnectivityHandler>
   );
 }

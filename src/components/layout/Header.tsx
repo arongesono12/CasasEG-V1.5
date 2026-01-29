@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
           <img 
             src={logo} 
             alt="CasasEG" 
-            className="h-14 md:h-18 w-auto object-contain hover:opacity-90 transition-opacity" 
+            className="h-[40px] w-auto md:h-[30px] object-contain hover:opacity-90 transition-opacity" 
           />
         </div>
 

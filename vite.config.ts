@@ -26,6 +26,11 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        outDir: 'dist',
+        sourcemap: true,
+        chunkSizeWarningLimit: 1000
       }
     };
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Header, MobileNavigation } from "../components/layout";
+import { Header, MobileNavigation, Footer } from "../components/layout";
 import {
   SearchBar,
   PropertyCard,
@@ -331,6 +331,8 @@ export function HomePage() {
         }}
       />
 
+      <Footer />
+
       <MobileNavigation
         currentUser={currentUser}
         onHomeClick={() => scrollToTop()}
@@ -353,7 +355,8 @@ export function HomePage() {
           if (!currentUser) setIsLoginOpen(true);
           else if (
             currentUser.role === "owner" ||
-            currentUser.role === "admin"
+            currentUser.role === "admin" ||
+            currentUser.role === "superadmin"
           ) {
             setShowPropertyUpload(true);
           }
