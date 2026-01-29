@@ -2,6 +2,7 @@ import React, { createContext, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Property } from '../types';
 import * as supabaseService from '../services/supabaseService';
+import { useAuth } from './AuthContext';
 
 interface PropertyContextType {
   properties: Property[];
