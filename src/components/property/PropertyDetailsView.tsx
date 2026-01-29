@@ -132,7 +132,14 @@ export const PropertyDetailsView: React.FC<PropertyDetailsViewProps> = ({
                   </div>
                </div>
                <div className="relative">
-                  <img src={`https://avatar.iran.liara.run/public/boy?username=${property.ownerId}`} alt="Host" className="w-14 h-14 rounded-full object-cover bg-gray-50 border border-gray-100 shadow-sm" />
+                  <img 
+                    src={`https://ui-avatars.com/api/?name=${property.ownerId}&background=random&color=fff&size=128`} 
+                    alt="Host" 
+                    className="w-14 h-14 rounded-full object-cover bg-gray-50 border border-gray-100 shadow-sm"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+                    }}
+                  />
                   <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
                      <Icons.Check className="w-4 h-4 text-emerald-500 bg-emerald-50 rounded-full p-0.5" />
                   </div>
@@ -237,5 +244,3 @@ export const PropertyDetailsView: React.FC<PropertyDetailsViewProps> = ({
     </motion.div>
   );
 };
-
-
