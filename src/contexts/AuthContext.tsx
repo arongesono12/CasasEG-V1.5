@@ -41,38 +41,110 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Auth initialization taking too long, forcing loading to false');
         setIsLoading(false);
       }
-    }, 8000);
+    }, 10000);
+
+    const loadAppData = async (userId?: string) => {
+      try {
+        console.log('Loading app data...');
+        const allUsers = await supabaseService.getAllUsers();
+        if (mounted && allUsers) setUsers(allUsers);
+      } catch (e) {
+        console.error('Failed to load initial app data:', e);
+      }
+    };
 
     const initialize = async () => {
       try {
         console.log('Initializing Auth State...');
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         
+        if (error) throw error;
+
         if (mounted) {
           if (session) {
             await handleUserSession(session);
+            await loadAppData(session.user.id);
           } else {
             console.log('No session found');
             setIsLoading(false);
+            await loadAppData();
           }
         }
       } catch (error) {
         console.error('Error during auth initialization:', error);
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          await loadAppData();
+        }
       }
     };
     
-    const loadUsersData = async () => {
+    // Helper to process session and get/create user profile
+    const handleUserSession = async (session: Session) => {
       try {
-        const allUsers = await supabaseService.getAllUsers();
-        if (mounted && allUsers) setUsers(allUsers);
-      } catch (e) {
-        console.error('Failed to load users list:', e);
+        if (!session.user.email) throw new Error('No email in session');
+
+        console.log('Processing session for:', session.user.email);
+
+        // 1. Try to fetch existing user profile
+        let userProfile = await supabaseService.getUserById(session.user.id);
+
+        // 2. If no profile exists, create one (lazy creation)
+        if (!userProfile) {
+          console.log('No profile found in DB, creating one...');
+          
+          // Determine role (check localStorage for pending role from registration flow)
+          const pendingRole = localStorage.getItem('casaseg_pending_role') as UserRole;
+          localStorage.removeItem('casaseg_pending_role');
+
+          const isSpecificAdmin = session.user.email === 'arongesono@outlook.es';
+          const finalRole: UserRole = isSpecificAdmin ? 'superadmin' : (pendingRole || 'client');
+          
+          const metadata = session.user.user_metadata || {};
+          const newProfile: User = {
+            id: session.user.id,
+            email: session.user.email,
+            name: metadata.full_name || metadata.name || session.user.email.split('@')[0],
+            role: finalRole,
+            avatar: metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.email)}&background=random`
+          };
+
+          try {
+            const createdUser = await supabaseService.createUser(newProfile);
+            if (createdUser) {
+              userProfile = createdUser;
+            } else {
+              userProfile = newProfile;
+            }
+          } catch (createError) {
+            console.warn('Could not create profile in DB (likely RLS), using local session info:', createError);
+            userProfile = newProfile;
+          }
+        }
+
+        // 3. Ensure superadmin role for the specific administrative email
+        if (userProfile && session.user.email === 'arongesono@outlook.es' && userProfile.role !== 'superadmin') {
+          console.log('Enforcing superadmin role for admin email...');
+          userProfile.role = 'superadmin';
+          try {
+            await supabaseService.updateUser(userProfile.id, { role: 'superadmin' });
+          } catch (updateError) {
+            console.warn('Could not update role in DB:', updateError);
+          }
+        }
+
+        console.log('Active User Profile:', userProfile);
+        if (mounted) setCurrentUser(userProfile);
+      } catch (error) {
+        console.error('CRITICAL: Error handling user session:', error);
+        if (mounted) setCurrentUser(null);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
     };
 
     initialize();
-    loadUsersData();
+    loadAppData(); // Initial data load
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth State Change Event:', event);
@@ -80,9 +152,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (session) {
         await handleUserSession(session);
+        await loadAppData(session.user.id);
       } else {
         setCurrentUser(null);
         setIsLoading(false);
+        await loadAppData();
       }
     });
 
@@ -92,61 +166,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, []);
-
-  // Helper to process session and get/create user profile
-  const handleUserSession = async (session: Session) => {
-    try {
-      if (!session.user.email) throw new Error('No email in session');
-
-      // 1. Try to fetch existing user profile
-      let userProfile = await supabaseService.getUserById(session.user.id);
-
-      // 2. If no profile exists, create one (lazy creation)
-      if (!userProfile) {
-        console.log('Creating new profile for user...');
-        
-        // Determine role (check localStorage for pending role from registration flow)
-        const pendingRole = localStorage.getItem('casaseg_pending_role') as UserRole;
-        localStorage.removeItem('casaseg_pending_role');
-
-        const isSpecificAdmin = session.user.email === 'arongesono@outlook.es';
-        const finalRole: UserRole = isSpecificAdmin ? 'superadmin' : (pendingRole || 'client');
-        
-        const metadata = session.user.user_metadata || {};
-        const newProfile: User = {
-          id: session.user.id,
-          email: session.user.email,
-          name: metadata.full_name || metadata.name || session.user.email.split('@')[0],
-          role: finalRole,
-          avatar: metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.email)}&background=random`
-        };
-
-        const createdUser = await supabaseService.createUser(newProfile);
-        if (createdUser) {
-          userProfile = createdUser;
-        } else {
-          // Fallback if DB insert fails but Auth succeeds (should rarely happen)
-          userProfile = newProfile;
-        }
-      }
-
-      // 3. Ensure superadmin role for the specific administrative email
-      if (userProfile && session.user.email === 'arongesono@outlook.es' && userProfile.role !== 'superadmin') {
-        console.log('Enforcing superadmin role for admin email...');
-        userProfile.role = 'superadmin';
-        // Force update DB to ensure consistency
-        await supabaseService.updateUser(userProfile.id, { role: 'superadmin' });
-      }
-
-      console.log('User profile loaded:', userProfile);
-      if (userProfile) setCurrentUser(userProfile);
-    } catch (error) {
-      console.error('CRITICAL: Error handling user session:', error);
-      setCurrentUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const loginWithEmail = async (email: string, password: string) => {
     setIsLoading(true);

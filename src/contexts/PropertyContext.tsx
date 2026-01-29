@@ -16,12 +16,13 @@ interface PropertyContextType {
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
 
 export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser } = useAuth();
   const queryClient = useQueryClient();
 
-  // 1. Fetch Properties with Cache
+  // 1. Fetch Properties with Cache - Depends on user role for visibility
   const { data: properties = [], isLoading, error } = useQuery({
-    queryKey: ['properties'],
-    queryFn: supabaseService.fetchProperties,
+    queryKey: ['properties', currentUser?.id],
+    queryFn: () => supabaseService.fetchProperties(),
     staleTime: 1000 * 30, // 30 seconds fresh
   });
 

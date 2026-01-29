@@ -17,28 +17,53 @@ const handleError = (error: any, context?: string) => {
  * MAPPING UTILITIES
  */
 
-const mapPropertyFromDb = (dbProp: any): Property => ({
-  id: dbProp.id,
-  ownerId: dbProp.owner_id,
-  title: dbProp.title,
-  description: dbProp.description,
-  price: Number(dbProp.price),
-  location: dbProp.location,
-  coordinates: dbProp.coordinates,
-  city: dbProp.city,
-  region: dbProp.region,
-  imageUrls: dbProp.image_urls || [],
-  bedrooms: dbProp.bedrooms,
-  bathrooms: dbProp.bathrooms,
-  area: dbProp.area,
-  isOccupied: dbProp.is_occupied,
-  features: dbProp.features || [],
-  waitingList: dbProp.waiting_list || [],
-  status: dbProp.status,
-  rating: Number(dbProp.rating),
-  reviewCount: dbProp.review_count,
-  category: dbProp.category,
-});
+const mapPropertyFromDb = (dbProp: any): Property => {
+  try {
+    return {
+      id: dbProp.id,
+      ownerId: dbProp.owner_id,
+      title: dbProp.title || "Sin título",
+      description: dbProp.description || "",
+      price: Number(dbProp.price) || 0,
+      location: dbProp.location || "Ubicación no disponible",
+      coordinates: dbProp.coordinates,
+      city: dbProp.city,
+      region: dbProp.region,
+      imageUrls: Array.isArray(dbProp.image_urls) ? dbProp.image_urls : [],
+      bedrooms: Number(dbProp.bedrooms) || 0,
+      bathrooms: Number(dbProp.bathrooms) || 0,
+      area: Number(dbProp.area) || 0,
+      isOccupied: !!dbProp.is_occupied,
+      features: Array.isArray(dbProp.features) ? dbProp.features : [],
+      waitingList: Array.isArray(dbProp.waiting_list) ? dbProp.waiting_list : [],
+      status: dbProp.status || 'active',
+      rating: Number(dbProp.rating) || 5,
+      reviewCount: Number(dbProp.review_count) || 0,
+      category: dbProp.category || 'Apartamentos',
+    };
+  } catch (err) {
+    console.error("Error mapping property from DB:", err, dbProp);
+    // Fallback to minimal valid property
+    return {
+      id: dbProp.id || Math.random().toString(),
+      ownerId: dbProp.owner_id || "",
+      title: "Error de datos",
+      description: "",
+      price: 0,
+      location: "",
+      imageUrls: [],
+      bedrooms: 0,
+      bathrooms: 0,
+      area: 0,
+      isOccupied: false,
+      features: [],
+      waitingList: [],
+      status: 'suspended',
+      rating: 0,
+      reviewCount: 0
+    };
+  }
+};
 
 const mapPropertyToDb = (prop: Partial<Property>): any => {
   const dbProp: any = {};
@@ -94,7 +119,13 @@ export const signInWithEmail = async (email: string, password: string) => {
     email,
     password,
   });
-  if (error) console.error("Login Error:", error.message);
+  if (error) {
+    console.error("Login Error:", error.message);
+    // Translate common errors
+    if (error.message.includes("Email not confirmed")) {
+      error.message = "VERIFY_EMAIL";
+    }
+  }
   return { user: data?.user || null, session: data?.session || null, error };
 };
 
@@ -160,19 +191,23 @@ export const getCurrentSession = async () => {
  */
 
 export const getUserById = async (id: string): Promise<User | null> => {
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", id)
-    .single();
-  if (error) {
-    if (error.code !== "PGRST116") {
-      // PGRST116 is "Row not found" - ignore log for this
-      console.warn("Error fetching user profile:", error);
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) {
+      if (error.code !== "PGRST116") {
+        console.warn("Error fetching user profile:", error.message);
+      }
+      return null;
     }
+    return data as User;
+  } catch (err) {
+    console.error("Unexpected error in getUserById:", err);
     return null;
   }
-  return data as User;
 };
 
 // Renamed from createUser for clarity, but keeping alias if needed or just using this
@@ -183,8 +218,8 @@ export const createUser = async (user: User): Promise<User | null> => {
     .select()
     .single();
   if (error) {
-    console.error("Error creating user profile:", error);
-    return null;
+    console.error("Error creating user profile in public.users:", error.message);
+    throw error; // Throw so AuthContext knows it failed
   }
   return data as User;
 };
@@ -192,7 +227,7 @@ export const createUser = async (user: User): Promise<User | null> => {
 export const getAllUsers = async (): Promise<User[]> => {
   const { data, error } = await supabase.from("users").select("*");
   if (error) {
-    console.error("Error fetching users:", error);
+    console.error("Error fetching users:", error.message);
     return [];
   }
   return data as User[];
@@ -227,14 +262,18 @@ export const setAuthUser = (_user: User | null) => {};
  */
 
 export const fetchProperties = async (): Promise<Property[]> => {
+  console.log("Fetching properties from Supabase...");
   const { data, error } = await supabase
     .from("properties")
     .select("*")
     .order("created_at", { ascending: false });
+  
   if (error) {
-    console.error("Error fetching properties:", error);
+    console.error("Error fetching properties:", error.message);
     return [];
   }
+  
+  console.log(`Fetched ${data?.length || 0} properties.`);
   return (data || []).map(mapPropertyFromDb);
 };
 

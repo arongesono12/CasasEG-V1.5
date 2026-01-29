@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS messages (
 -- 5) Semillas: usuarios de ejemplo
 INSERT INTO users (id, name, email, role, avatar, password)
 VALUES
-  ('00000000-0000-0000-0000-000000000001','Administrador','admin@vesta.com','admin',NULL,'123'),
-  ('00000000-0000-0000-0000-000000000002','Owner','owner@test.com','owner',NULL,'123'),
-  ('00000000-0000-0000-0000-000000000003','Client','client@test.com','client',NULL,'123')
+  ('00000000-0000-0000-0000-000000000001','Administrador','admin@casaseg.com','admin',NULL,'123'),
+  ('00000000-0000-0000-0000-000000000002','Owner','owner@casaseg.com','owner',NULL,'123'),
+  ('00000000-0000-0000-0000-000000000003','Client','client@casaseg.com','client',NULL,'123')
 ON CONFLICT (email) DO NOTHING;
 
 -- 6) Semilla: propiedad de ejemplo (usa el propietario por email)
