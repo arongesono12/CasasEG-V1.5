@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Property } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProperties } from '../../contexts/PropertyContext';
@@ -12,6 +13,7 @@ interface ProfileViewProps {
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ onBack, onAdminClick }) => {
+  const navigate = useNavigate();
   const { currentUser, updateProfile, logout, users } = useAuth();
   const { properties } = useProperties();
   const [activeTab, setActiveTab] = useState<'profile' | 'activity' | 'settings'>('profile');
@@ -155,6 +157,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onBack, onAdminClick }
                   <Button variant="brand" onClick={onAdminClick} className="text-sm">
                     <Icons.Dashboard className="w-4 h-4 mr-2" />
                     Panel Admin
+                  </Button>
+                )}
+                {currentUser.role === 'owner' && (
+                  <Button 
+                    variant="brand" 
+                    onClick={() => navigate('/owner')}
+                    className="text-sm"
+                  >
+                    <Icons.Building className="w-4 h-4 mr-2" />
+                    Mis Propiedades
                   </Button>
                 )}
                 <Button 

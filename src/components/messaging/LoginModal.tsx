@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, UserRole } from '../../types';
 import { Icons } from '../Icons';
 import { Button } from '../ui';
 import logo from '../../assets/logo/logo.png';
 import { useAuth } from '../../contexts/AuthContext';
+import * as supabaseService from '../../services/supabaseService';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -28,16 +29,144 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     role: 'client' as UserRole
   });
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+  }>({});
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [availabilityChecked, setAvailabilityChecked] = useState({
+    email: false,
+    name: false,
+  });
 
   useEffect(() => {
     if (isOpen) {
       setFormData({ name: '', email: '', password: '', role: 'client' });
       setError('');
       setSuccessMessage('');
+      setValidationErrors({});
       setIsRegistering(false);
       setIsForgotPassword(false);
     }
   }, [isOpen]);
+
+  // Real-time validation
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateName = (name: string): boolean => {
+    return name.trim().length >= 2 && name.trim().length <= 50;
+  };
+
+  const validatePassword = (password: string): { valid: boolean; message?: string } => {
+    if (password.length < 8) {
+      return { valid: false, message: 'La contraseña debe tener al menos 8 caracteres' };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, message: 'La contraseña debe incluir al menos una mayúscula' };
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      return { valid: false, message: 'La contraseña debe incluir al menos un signo (!@#$%, etc)' };
+    }
+    return { valid: true };
+  };
+
+  // Debounced function to check email availability
+  const checkEmailAvailability = useCallback(
+    async (email: string) => {
+      if (!email || !validateEmail(email)) {
+        setValidationErrors(prev => ({ ...prev, email: undefined }));
+        setAvailabilityChecked(prev => ({ ...prev, email: false }));
+        return;
+      }
+
+      setIsCheckingAvailability(true);
+      try {
+        const exists = await supabaseService.checkEmailExists(email);
+        if (exists) {
+          setValidationErrors(prev => ({ 
+            ...prev, 
+            email: 'Este email ya está registrado. Por favor, usa otro email o inicia sesión.' 
+          }));
+        } else {
+          setValidationErrors(prev => {
+            const newErrors = { ...prev };
+            if (newErrors.email?.includes('ya está registrado')) {
+              delete newErrors.email;
+            }
+            return newErrors;
+          });
+        }
+        setAvailabilityChecked(prev => ({ ...prev, email: true }));
+      } catch (err) {
+        console.error('Error checking email availability:', err);
+      } finally {
+        setIsCheckingAvailability(false);
+      }
+    },
+    []
+  );
+
+  // Debounced function to check name availability
+  const checkNameAvailability = useCallback(
+    async (name: string) => {
+      if (!name || !validateName(name)) {
+        setValidationErrors(prev => ({ ...prev, name: undefined }));
+        setAvailabilityChecked(prev => ({ ...prev, name: false }));
+        return;
+      }
+
+      setIsCheckingAvailability(true);
+      try {
+        const exists = await supabaseService.checkNameExists(name);
+        if (exists) {
+          setValidationErrors(prev => ({ 
+            ...prev, 
+            name: 'Este nombre de usuario ya está en uso. Por favor, elige otro nombre.' 
+          }));
+        } else {
+          setValidationErrors(prev => {
+            const newErrors = { ...prev };
+            if (newErrors.name?.includes('ya está en uso')) {
+              delete newErrors.name;
+            }
+            return newErrors;
+          });
+        }
+        setAvailabilityChecked(prev => ({ ...prev, name: true }));
+      } catch (err) {
+        console.error('Error checking name availability:', err);
+      } finally {
+        setIsCheckingAvailability(false);
+      }
+    },
+    []
+  );
+
+  // Debounce timers
+  useEffect(() => {
+    if (!isRegistering) return;
+
+    const emailTimer = setTimeout(() => {
+      if (formData.email) {
+        checkEmailAvailability(formData.email);
+      }
+    }, 800); // Wait 800ms after user stops typing
+
+    const nameTimer = setTimeout(() => {
+      if (formData.name) {
+        checkNameAvailability(formData.name);
+      }
+    }, 800);
+
+    return () => {
+      clearTimeout(emailTimer);
+      clearTimeout(nameTimer);
+    };
+  }, [formData.email, formData.name, isRegistering, checkEmailAvailability, checkNameAvailability]);
 
   if (!isOpen) return null;
 
@@ -47,37 +176,117 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setSuccessMessage('');
 
     if (isRegistering) {
-      // REGISTRATION
-      if (!formData.name || !formData.email || !formData.password) {
-        setError('Todos los campos son obligatorios');
+      // REGISTRATION - Enhanced validation
+      setValidationErrors({});
+      
+      // Validate name
+      if (!formData.name.trim()) {
+        setValidationErrors(prev => ({ ...prev, name: 'El nombre es obligatorio' }));
+        setError('Por favor completa todos los campos correctamente');
+        return;
+      }
+      if (!validateName(formData.name)) {
+        setValidationErrors(prev => ({ ...prev, name: 'El nombre debe tener entre 2 y 50 caracteres' }));
+        setError('Por favor completa todos los campos correctamente');
         return;
       }
 
-      // Password Security Validation
-      const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
-      if (!passwordRegex.test(formData.password)) {
-        if (formData.password.length < 8) {
-          setError('La contraseña debe tener al menos 8 caracteres');
-        } else if (!/[A-Z]/.test(formData.password)) {
-          setError('La contraseña debe incluir al menos una mayúscula');
-        } else {
-          setError('La contraseña debe incluir al menos un signo (!@#$%, etc)');
+      // Validate email
+      if (!formData.email.trim()) {
+        setValidationErrors(prev => ({ ...prev, email: 'El email es obligatorio' }));
+        setError('Por favor completa todos los campos correctamente');
+        return;
+      }
+      if (!validateEmail(formData.email)) {
+        setValidationErrors(prev => ({ ...prev, email: 'Ingresa un email válido' }));
+        setError('Por favor completa todos los campos correctamente');
+        return;
+      }
+
+      // Check if email or name already exists before attempting registration
+      setIsCheckingAvailability(true);
+      try {
+        const availability = await supabaseService.checkUserAvailability(
+          formData.email.trim().toLowerCase(),
+          formData.name.trim()
+        );
+
+        if (!availability.emailAvailable) {
+          setValidationErrors(prev => ({ 
+            ...prev, 
+            email: availability.emailError || 'Este email ya está registrado' 
+          }));
+          setError(availability.emailError || 'Este email ya está registrado. ¿Quieres iniciar sesión?');
+          setIsCheckingAvailability(false);
+          return;
         }
+
+        if (!availability.nameAvailable) {
+          setValidationErrors(prev => ({ 
+            ...prev, 
+            name: availability.nameError || 'Este nombre ya está en uso' 
+          }));
+          setError(availability.nameError || 'Este nombre de usuario ya está en uso. Por favor, elige otro nombre.');
+          setIsCheckingAvailability(false);
+          return;
+        }
+      } catch (checkErr) {
+        console.error('Error checking user availability:', checkErr);
+        // Continue with registration attempt if check fails
+      } finally {
+        setIsCheckingAvailability(false);
+      }
+
+      // Validate password
+      if (!formData.password) {
+        setValidationErrors(prev => ({ ...prev, password: 'La contraseña es obligatoria' }));
+        setError('Por favor completa todos los campos correctamente');
+        return;
+      }
+      const passwordValidation = validatePassword(formData.password);
+      if (!passwordValidation.valid) {
+        setValidationErrors(prev => ({ ...prev, password: passwordValidation.message }));
+        setError(passwordValidation.message || 'La contraseña no cumple los requisitos');
         return;
       }
       
       try {
+        setError('');
         await registerWithEmail({ 
-          name: formData.name, 
-          email: formData.email, 
+          name: formData.name.trim(), 
+          email: formData.email.trim().toLowerCase(), 
           role: formData.role,
           password: formData.password
         });
         
-        setSuccessMessage('¡Cuenta creada! Revisa tu email para confirmarla.');
-        // Don't close immediately so they can read the message
+        setSuccessMessage('¡Cuenta creada exitosamente! Revisa tu email para confirmar tu cuenta. El enlace de confirmación puede tardar unos minutos en llegar.');
+        // Reset form after successful registration
+        setTimeout(() => {
+          setFormData({ name: '', email: '', password: '', role: 'client' });
+          setValidationErrors({});
+        }, 2000);
       } catch (err: any) {
-        setError(err.message || 'Error al registrarse');
+        const errorMessage = err.message || 'Error al registrarse';
+        
+        // Handle specific Supabase errors
+        if (errorMessage.includes('already registered') || 
+            errorMessage.includes('already exists') ||
+            errorMessage.includes('User already registered') ||
+            errorMessage.includes('email address is already registered')) {
+          setValidationErrors(prev => ({ 
+            ...prev, 
+            email: 'Este email ya está registrado. Por favor, usa otro email o inicia sesión.' 
+          }));
+          setError('Este email ya está registrado. ¿Quieres iniciar sesión?');
+        } else if (errorMessage.includes('email')) {
+          setValidationErrors(prev => ({ ...prev, email: 'Este email no es válido o ya está en uso' }));
+          setError('Error con el email proporcionado');
+        } else if (errorMessage.includes('name') || errorMessage.includes('username')) {
+          setValidationErrors(prev => ({ ...prev, name: 'Este nombre de usuario ya está en uso' }));
+          setError('Este nombre de usuario ya está en uso. Por favor, elige otro nombre.');
+        } else {
+          setError(errorMessage);
+        }
       }
     } else if (isForgotPassword) {
       // RESET PASSWORD
@@ -138,26 +347,74 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegistering && (
               <div className="animate-fade-in">
-                 <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">Nombre Completo</label>
-                 <input 
-                    type="text"
-                    className={inputClass}
-                    placeholder="Ej. Juan Pérez"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                 />
+                 <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">
+                   Nombre Completo
+                   {isCheckingAvailability && formData.name && (
+                     <span className="ml-2 text-gray-400 text-[10px] normal-case">(verificando...)</span>
+                   )}
+                 </label>
+                 <div className="relative">
+                   <input 
+                      type="text"
+                      className={`${inputClass} ${validationErrors.name ? 'border-red-500 focus:ring-red-500' : availabilityChecked.name && !validationErrors.name ? 'border-green-500 focus:ring-green-500' : ''}`}
+                      placeholder="Ej. Juan Pérez"
+                      value={formData.name}
+                      onChange={e => {
+                        setFormData({...formData, name: e.target.value});
+                        setAvailabilityChecked(prev => ({ ...prev, name: false }));
+                        if (validationErrors.name) {
+                          setValidationErrors(prev => ({ ...prev, name: undefined }));
+                        }
+                      }}
+                   />
+                   {availabilityChecked.name && !validationErrors.name && formData.name && (
+                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                       <Icons.Check className="w-4 h-4 text-green-500" />
+                     </div>
+                   )}
+                 </div>
+                 {validationErrors.name && (
+                   <p className="text-red-500 text-xs mt-1 ml-2 flex items-center gap-1">
+                     <Icons.Close className="w-3 h-3" />
+                     {validationErrors.name}
+                   </p>
+                 )}
               </div>
             )}
 
             <div>
-               <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">Email</label>
-               <input 
-                  type="email"
-                  className={inputClass}
-                  placeholder="usuario@ejemplo.com"
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
-               />
+               <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">
+                 Email
+                 {isCheckingAvailability && formData.email && (
+                   <span className="ml-2 text-gray-400 text-[10px] normal-case">(verificando...)</span>
+                 )}
+               </label>
+               <div className="relative">
+                 <input 
+                    type="email"
+                    className={`${inputClass} ${validationErrors.email ? 'border-red-500 focus:ring-red-500' : availabilityChecked.email && !validationErrors.email && validateEmail(formData.email) ? 'border-green-500 focus:ring-green-500' : ''}`}
+                    placeholder="usuario@ejemplo.com"
+                    value={formData.email}
+                    onChange={e => {
+                      setFormData({...formData, email: e.target.value});
+                      setAvailabilityChecked(prev => ({ ...prev, email: false }));
+                      if (validationErrors.email) {
+                        setValidationErrors(prev => ({ ...prev, email: undefined }));
+                      }
+                    }}
+                 />
+                 {availabilityChecked.email && !validationErrors.email && validateEmail(formData.email) && (
+                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                     <Icons.Check className="w-4 h-4 text-green-500" />
+                   </div>
+                 )}
+               </div>
+               {validationErrors.email && (
+                 <p className="text-red-500 text-xs mt-1 ml-2 flex items-center gap-1">
+                   <Icons.Close className="w-3 h-3" />
+                   {validationErrors.email}
+                 </p>
+               )}
             </div>
 
             {!isForgotPassword && (
@@ -166,10 +423,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <div className="relative">
                   <input 
                       type={showPassword ? "text" : "password"}
-                      className={inputClass}
+                      className={`${inputClass} ${validationErrors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
                       placeholder="••••••••"
                       value={formData.password}
-                      onChange={e => setFormData({...formData, password: e.target.value})}
+                      onChange={e => {
+                        setFormData({...formData, password: e.target.value});
+                        if (validationErrors.password) {
+                          setValidationErrors(prev => ({ ...prev, password: undefined }));
+                        }
+                      }}
                   />
                   <button
                       type="button"
@@ -183,6 +445,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       )}
                   </button>
                 </div>
+                {validationErrors.password && (
+                  <p className="text-red-500 text-xs mt-1 ml-2">{validationErrors.password}</p>
+                )}
+                {isRegistering && (
+                  <div className="mt-2 ml-2 text-[10px] text-gray-500">
+                    <p className="font-semibold mb-1">Requisitos:</p>
+                    <ul className="list-disc list-inside space-y-0.5">
+                      <li className={formData.password.length >= 8 ? 'text-green-600' : ''}>Mínimo 8 caracteres</li>
+                      <li className={/[A-Z]/.test(formData.password) ? 'text-green-600' : ''}>Una mayúscula</li>
+                      <li className={/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'text-green-600' : ''}>Un signo especial</li>
+                    </ul>
+                  </div>
+                )}
                 {!isRegistering && (
                   <button 
                     type="button"
@@ -238,8 +513,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             )}
 
             <div className="pt-2">
-              <Button type="submit" onClick={() => {}} variant="brand" className="w-full py-3 text-base">
-                 {isForgotPassword ? 'Enviar Correo' : isRegistering ? 'Registrarse' : 'Iniciar Sesión'}
+              <Button 
+                type="submit" 
+                onClick={() => {}} 
+                variant="brand" 
+                className="w-full py-3 text-base"
+                disabled={isCheckingAvailability || isLoading}
+              >
+                 {isCheckingAvailability 
+                   ? 'Verificando...' 
+                   : isForgotPassword 
+                     ? 'Enviar Correo' 
+                     : isRegistering 
+                       ? 'Registrarse' 
+                       : 'Iniciar Sesión'}
               </Button>
             </div>
           </form>

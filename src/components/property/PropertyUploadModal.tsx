@@ -12,13 +12,14 @@ interface PropertyUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialData?: Property | null;
 }
 
 type Step = 1 | 2 | 3 | 4;
 
-export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen, onClose, onSuccess, initialData }) => {
   const { currentUser } = useAuth();
-  const { addProperty } = useProperties();
+  const { addProperty, updateProperty } = useProperties();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -27,7 +28,7 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
   const [formData, setFormData] = useState({
     title: '',
     location: '',
-    coordinates: undefined as { lat: number; lng: number } | undefined, // Add coordinates
+    coordinates: undefined as { lat: number; lng: number } | undefined,
     price: '',
     bedrooms: '',
     bathrooms: '',
@@ -38,6 +39,39 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
   });
 
   const [featureInput, setFeatureInput] = useState('');
+
+  // Load initial data when editing
+  React.useEffect(() => {
+    if (initialData && isOpen) {
+      setFormData({
+        title: initialData.title || '',
+        location: initialData.location || '',
+        coordinates: initialData.coordinates,
+        price: initialData.price?.toString() || '',
+        bedrooms: initialData.bedrooms?.toString() || '',
+        bathrooms: initialData.bathrooms?.toString() || '',
+        area: initialData.area?.toString() || '',
+        description: initialData.description || '',
+        features: initialData.features || [],
+        imageFiles: []
+      });
+    } else if (!initialData && isOpen) {
+      // Reset form for new property
+      setFormData({
+        title: '',
+        location: '',
+        coordinates: undefined,
+        price: '',
+        bedrooms: '',
+        bathrooms: '',
+        area: '',
+        description: '',
+        features: [],
+        imageFiles: []
+      });
+      setCurrentStep(1);
+    }
+  }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
@@ -155,25 +189,27 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
     setUploadProgress(10);
     
     try {
-      // Optimize and Upload images
-      const imageUrls: string[] = [];
+      // Optimize and Upload new images (if any)
+      let imageUrls: string[] = initialData?.imageUrls || [];
       const totalImages = formData.imageFiles.length;
       
-      for (let i = 0; i < totalImages; i++) {
-        const file = formData.imageFiles[i];
-        setUploadProgress(Math.round(20 + (i / totalImages) * 60)); // 20% to 80% range for uploads
-        
-        // 1. Optimize
-        const optimizedFile = await optimizeImageForUpload(file, file.name);
-        
-        // 2. Upload to Storage
-        const publicUrl = await supabaseService.uploadPropertyImage(optimizedFile);
-        imageUrls.push(publicUrl);
+      if (totalImages > 0) {
+        for (let i = 0; i < totalImages; i++) {
+          const file = formData.imageFiles[i];
+          setUploadProgress(Math.round(20 + (i / totalImages) * 60)); // 20% to 80% range for uploads
+          
+          // 1. Optimize
+          const optimizedFile = await optimizeImageForUpload(file, file.name);
+          
+          // 2. Upload to Storage
+          const publicUrl = await supabaseService.uploadPropertyImage(optimizedFile);
+          imageUrls.push(publicUrl);
+        }
       }
       
       setUploadProgress(85);
       
-      // Create property in DB
+      // Create or update property in DB
       const propertyData: Partial<Property> = {
         ownerId: currentUser?.id || '',
         title: formData.title,
@@ -186,12 +222,19 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
         description: formData.description,
         features: formData.features,
         imageUrls: imageUrls,
-        status: 'active',
-        rating: 0
+        status: initialData?.status || 'active',
+        rating: initialData?.rating || 0
       };
       
       setUploadProgress(95);
-      await addProperty(propertyData as Property);
+      
+      if (initialData) {
+        // Update existing property
+        await updateProperty(initialData.id, propertyData);
+      } else {
+        // Create new property
+        await addProperty(propertyData as Property);
+      }
       
       setUploadProgress(100);
       
@@ -203,8 +246,8 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
       }, 500);
       
     } catch (err) {
-      console.error('Error creating property:', err);
-      setError(err instanceof Error ? err.message : 'Error al crear la propiedad');
+      console.error(`Error ${initialData ? 'updating' : 'creating'} property:`, err);
+      setError(err instanceof Error ? err.message : `Error al ${initialData ? 'actualizar' : 'crear'} la propiedad`);
       setIsUploading(false);
       setUploadProgress(0);
     }
@@ -214,6 +257,7 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
     setFormData({
       title: '',
       location: '',
+      coordinates: undefined,
       price: '',
       bedrooms: '',
       bathrooms: '',
@@ -225,7 +269,6 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
     setCurrentStep(1);
     setError('');
     setUploadProgress(0);
-    setFormData(prev => ({ ...prev, coordinates: undefined })); // Reset coordinates
   };
 
   const inputClass = "w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all";
@@ -236,7 +279,9 @@ export const PropertyUploadModal: React.FC<PropertyUploadModalProps> = ({ isOpen
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Publicar Propiedad</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {initialData ? 'Editar Propiedad' : 'Publicar Propiedad'}
+            </h2>
             <p className="text-sm text-gray-500 mt-1">Paso {currentStep} de 4</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">

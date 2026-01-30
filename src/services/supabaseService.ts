@@ -134,13 +134,28 @@ export const signUpWithEmail = async (
   password: string,
   metadata: any,
 ) => {
+  const redirectTo = `${window.location.origin}/auth/confirm`;
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: email.toLowerCase().trim(),
     password,
     options: {
       data: metadata, // stored in user_metadata
+      emailRedirectTo: redirectTo, // Redirect to confirmation page after email verification
     },
   });
+  
+  // Enhance error messages for better user feedback
+  if (error) {
+    // Check for common duplicate email errors
+    if (error.message.includes('already registered') ||
+        error.message.includes('User already registered') ||
+        error.message.includes('email address is already registered') ||
+        error.message.includes('already exists') ||
+        error.status === 422) {
+      error.message = 'Este email ya está registrado. Por favor, usa otro email o inicia sesión.';
+    }
+  }
+  
   return { user: data?.user || null, session: data?.session || null, error };
 };
 
@@ -231,6 +246,82 @@ export const getAllUsers = async (): Promise<User[]> => {
     return [];
   }
   return data as User[];
+};
+
+/**
+ * Check if an email already exists in the database
+ * Note: We check both the public.users table and attempt to sign up
+ * to catch emails that exist in auth.users but not yet in public.users
+ */
+export const checkEmailExists = async (email: string): Promise<boolean> => {
+  try {
+    // Check in public.users table (case-insensitive)
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("email")
+      .ilike("email", email.toLowerCase().trim())
+      .maybeSingle();
+    
+    if (userError && userError.code !== "PGRST116") {
+      console.error("Error checking email in users table:", userError);
+    }
+
+    // If found in public.users, email exists
+    if (userData) {
+      return true;
+    }
+
+    // Also try to check if email exists in auth by attempting a password reset
+    // This is a workaround since we don't have admin access
+    // We'll rely on the signUp error to catch duplicates in auth.users
+    return false;
+  } catch (err) {
+    console.error("Error checking email existence:", err);
+    return false; // Assume it doesn't exist to allow registration attempt
+  }
+};
+
+/**
+ * Check if a name (username) already exists in the database
+ */
+export const checkNameExists = async (name: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("name")
+      .ilike("name", name.trim()) // Case-insensitive search
+      .maybeSingle();
+    
+    if (error && error.code !== "PGRST116") {
+      console.error("Error checking name existence:", error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (err) {
+    console.error("Error checking name existence:", err);
+    return false;
+  }
+};
+
+/**
+ * Check if both email and name are available
+ */
+export const checkUserAvailability = async (email: string, name: string): Promise<{
+  emailAvailable: boolean;
+  nameAvailable: boolean;
+  emailError?: string;
+  nameError?: string;
+}> => {
+  const emailExists = await checkEmailExists(email);
+  const nameExists = await checkNameExists(name);
+
+  return {
+    emailAvailable: !emailExists,
+    nameAvailable: !nameExists,
+    emailError: emailExists ? 'Este email ya está registrado. Por favor, usa otro email o inicia sesión.' : undefined,
+    nameError: nameExists ? 'Este nombre de usuario ya está en uso. Por favor, elige otro nombre.' : undefined,
+  };
 };
 
 export const updateUser = async (id: string, updates: Partial<User>) => {

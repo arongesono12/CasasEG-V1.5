@@ -3,6 +3,7 @@ import { User, UserRole } from '../types';
 import * as supabaseService from '../services/supabaseService';
 import { supabase } from '../services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
+import { trackUserSession } from '../services/cookieService';
 
 // Simplified Context Interface
 interface AuthContextType {
@@ -134,7 +135,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         console.log('Active User Profile:', userProfile);
-        if (mounted) setCurrentUser(userProfile);
+        if (mounted) {
+          setCurrentUser(userProfile);
+          // Track user session in cookies
+          trackUserSession(userProfile.id);
+        }
       } catch (error) {
         console.error('CRITICAL: Error handling user session:', error);
         if (mounted) setCurrentUser(null);
@@ -160,6 +165,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // Initial check - if no session after a short delay, stop loading
+    setTimeout(() => {
+      if (mounted && isLoading) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session && mounted) {
+            console.log('No session found after timeout, stopping loading');
+            setIsLoading(false);
+          }
+        });
+      }
+    }, 1000);
+
     return () => {
       mounted = false;
       clearTimeout(safetyTimeout);
@@ -170,10 +187,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { user, error } = await supabaseService.signInWithEmail(email, password);
-      if (error) throw error;
-      if (!user) throw new Error('Login failed');
-      // onAuthStateChange will handle the rest
+      const { user, session, error } = await supabaseService.signInWithEmail(email, password);
+      if (error) {
+        setIsLoading(false);
+        throw error;
+      }
+      if (!user || !session) {
+        setIsLoading(false);
+        throw new Error('Login failed');
+      }
+      // Wait a bit for onAuthStateChange to process, but don't wait forever
+      // The onAuthStateChange handler will set isLoading to false when done
+      setTimeout(() => {
+        // Safety: if still loading after 2 seconds, force it to false
+        if (isLoading) {
+          console.warn('Login timeout, forcing loading to false');
+          setIsLoading(false);
+        }
+      }, 2000);
+      // onAuthStateChange will handle the rest and set isLoading to false
     } catch (error) {
       setIsLoading(false);
       throw error;

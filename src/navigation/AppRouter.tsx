@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { HomePage } from '../pages/HomePage';
 import { useAuth } from '../contexts/AuthContext';
 import { AnimatePresence } from 'framer-motion';
+import { trackPageView } from '../services/cookieService';
 
 // Lazy loaded components
 const ProfileView = React.lazy(() => import('../components/profile/ProfileView').then(module => ({ default: module.ProfileView })));
@@ -25,10 +26,17 @@ const LoadingScreen = () => (
 );
 
 const TermsPage = React.lazy(() => import('../pages/TermsPage').then(module => ({ default: module.TermsPage })));
+const EmailConfirmationPage = React.lazy(() => import('../pages/EmailConfirmationPage').then(module => ({ default: module.EmailConfirmationPage })));
+const OwnerDashboard = React.lazy(() => import('../pages/OwnerDashboard').then(module => ({ default: module.OwnerDashboard })));
 
 const AnimatedRoutes = () => {
   const location = useLocation();
   const { currentUser, isLoading } = useAuth();
+
+  // Track page views
+  React.useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -41,6 +49,7 @@ const AnimatedRoutes = () => {
         <Route path="/" element={<HomePage />} />
         <Route path="/properties" element={<PropertiesPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/auth/confirm" element={<EmailConfirmationPage />} />
         
         <Route 
           path="/property/:id" 
@@ -62,6 +71,11 @@ const AnimatedRoutes = () => {
         <Route 
           path="/admin" 
           element={(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') ? <AdminDashboard onBack={() => window.history.back()} /> : <Navigate to="/" />} 
+        />
+
+        <Route 
+          path="/owner" 
+          element={currentUser?.role === 'owner' ? <OwnerDashboard onBack={() => window.history.back()} /> : <Navigate to="/" />} 
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
