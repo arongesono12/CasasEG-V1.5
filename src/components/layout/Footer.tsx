@@ -26,12 +26,43 @@ export const Footer: React.FC = () => {
           <p className="text-gray-500 text-sm leading-relaxed">
             La plataforma líder en alquiler de viviendas. Encuentra tu hogar ideal con nosotros, de forma segura y rápida.
           </p>
-          <div className="flex gap-4">
-            <a href="#" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-indigo-600 transition-colors">
-              <Icons.Grid className="w-5 h-5" />
+          {/* Social Media Icons */}
+          <div className="flex gap-3 mt-2">
+            <a 
+              href="https://instagram.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-pink-600 hover:bg-pink-50 transition-colors"
+              aria-label="Instagram"
+            >
+              <Icons.Instagram className="w-5 h-5" />
             </a>
-            <a href="#" className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-indigo-600 transition-colors">
-              <Icons.Building className="w-5 h-5" />
+            <a 
+              href="https://twitter.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+              aria-label="X (Twitter)"
+            >
+              <Icons.X className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://linkedin.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              aria-label="LinkedIn"
+            >
+              <Icons.LinkedIn className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://youtube.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              aria-label="YouTube"
+            >
+              <Icons.Youtube className="w-5 h-5" />
             </a>
           </div>
         </div>
@@ -66,7 +97,7 @@ export const Footer: React.FC = () => {
 
       {/* Bottom Bar */}
       <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
-        <p className="text-sm text-gray-400">
+        <p className="text-center text-gray-400">
           © {new Date().getFullYear()} CasasEG. Todos los derechos reservados.
         </p>
         

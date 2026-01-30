@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Auth initialization taking too long, forcing loading to false');
         setIsLoading(false);
       }
-    }, 10000);
+    }, 30000);
 
     const loadAppData = async (userId?: string) => {
       try {
@@ -149,7 +149,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initialize();
-    loadAppData(); // Initial data load
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth State Change Event:', event);

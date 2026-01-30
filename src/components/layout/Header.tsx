@@ -14,6 +14,8 @@ interface HeaderProps {
   onLogoClick: () => void;
   messageCount: number;
   onProfileClick: () => void;
+  onSettingsClick?: () => void;
+  onNotificationsClick?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,7 +26,9 @@ export const Header: React.FC<HeaderProps> = ({
   onCreatePropertyClick,
   onLogoClick,
   messageCount,
-  onProfileClick
+  onProfileClick,
+  onSettingsClick,
+  onNotificationsClick
 }) => {
   return (
     <header className="bg-gray-50 sticky top-0 z-40 border-b border-gray-100/50 backdrop-blur-md bg-opacity-80">
@@ -57,7 +61,9 @@ export const Header: React.FC<HeaderProps> = ({
                 <UserDropdown 
                   currentUser={currentUser} 
                   onLogout={onLogout} 
-                  onProfileClick={onProfileClick} 
+                  onProfileClick={onProfileClick}
+                  onSettingsClick={onSettingsClick}
+                  onNotificationsClick={onNotificationsClick}
                 />
               </div>
             </>

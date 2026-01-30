@@ -9,6 +9,7 @@ import {
 import { PropertiesMap } from "../components/maps";
 import { Button, Toast, PropertyCardSkeleton } from "../components/ui";
 import { MessagesModal, LoginModal } from "../components/messaging";
+import { SettingsModal, NotificationsModal } from "../components/settings";
 import { ImageViewer } from "../components/ui";
 import { Icons } from "../components/Icons";
 import { TransitionGroup, CSSTransition } from "../lib/rtg-shim";
@@ -34,6 +35,8 @@ export function HomePage() {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [showPropertyUpload, setShowPropertyUpload] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [activeConversation, setActiveConversation] =
     useState<ConversationKey | null>(null);
   const [viewingImageState, setViewingImageState] = useState<{
@@ -148,6 +151,8 @@ export function HomePage() {
           setIsMessagesOpen(true);
         }}
         onCreatePropertyClick={() => setShowPropertyUpload(true)}
+        onSettingsClick={() => setIsSettingsOpen(true)}
+        onNotificationsClick={() => setIsNotificationsOpen(true)}
         onLogoClick={() => {
             setFilters({ location: '', name: '', maxPrice: '', category: 'Todas' });
             scrollToTop();
@@ -320,6 +325,21 @@ export function HomePage() {
           initialIndex={viewingImageState.index}
           onClose={() => setViewingImageState(null)}
         />
+      )}
+
+      {currentUser && (
+        <>
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            currentUser={currentUser}
+          />
+          <NotificationsModal
+            isOpen={isNotificationsOpen}
+            onClose={() => setIsNotificationsOpen(false)}
+            currentUser={currentUser}
+          />
+        </>
       )}
 
       <PropertyUploadModal
