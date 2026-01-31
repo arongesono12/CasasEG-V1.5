@@ -61,10 +61,6 @@ export function HomePage() {
   // Filtrar propiedades: solo mostrar a clientes y usuarios no autenticados
   // Admins y propietarios no deben ver propiedades en la pantalla principal
   const propertiesForClients = React.useMemo(() => {
-    // Si el usuario es admin o propietario, no mostrar propiedades
-    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'owner')) {
-      return [];
-    }
     // Clientes y usuarios no autenticados pueden ver todas las propiedades activas
     return properties.filter(p => p.status === 'active');
   }, [properties, currentUser]);
@@ -89,16 +85,6 @@ export function HomePage() {
 
   // Redirigir admins y propietarios a sus dashboards respectivos
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
-        navigate('/admin');
-        return;
-      }
-      if (currentUser.role === 'owner') {
-        navigate('/owner');
-        return;
-      }
-    }
   }, [currentUser, navigate]);
 
   const categories = [
@@ -333,14 +319,10 @@ export function HomePage() {
               <Icons.Search className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900">
-              {currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'owner')
-                ? 'Redirigiendo a tu dashboard...'
-                : 'No hay propiedades disponibles'}
+              No hay propiedades disponibles
             </h3>
             <p className="text-gray-500">
-              {currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'owner')
-                ? 'Los administradores y propietarios deben gestionar desde sus dashboards.'
-                : 'Intenta ajustar tus filtros de búsqueda.'}
+              Intenta ajustar tus filtros de búsqueda.
             </p>
           </div>
         )}
