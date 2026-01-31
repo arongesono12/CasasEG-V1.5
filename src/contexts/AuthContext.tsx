@@ -224,12 +224,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // If auto-confirm is enabled, onAuthStateChange picks it up.
-      // If email confirmation is required, we should notify user.
+      // Verificar si el email necesita confirmación
       if (user && !user.email_confirmed_at) {
-        // Just return, UI should show "check your email"
+        // El email de confirmación ha sido enviado
+        // El usuario debe verificar su email antes de poder iniciar sesión
         setIsLoading(false);
+        // No lanzar error, solo indicar que debe verificar el email
+        return;
       }
+      
+      // Si el usuario ya está confirmado, continuar con el flujo normal
+      setIsLoading(false);
     } catch (error) {
       setIsLoading(false);
       throw error;

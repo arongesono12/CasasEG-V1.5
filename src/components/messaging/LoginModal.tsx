@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { User, UserRole } from '../../types';
 import { Icons } from '../Icons';
 import { Button } from '../ui';
@@ -20,6 +21,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { sendResetPasswordEmail } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -28,6 +30,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     password: '',
     role: 'client' as UserRole
   });
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<{
     name?: string;
@@ -46,6 +50,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setError('');
       setSuccessMessage('');
       setValidationErrors({});
+      setConfirmPassword('');
+      setShowConfirmPassword(false);
+      setAcceptTerms(false);
       setIsRegistering(false);
       setIsForgotPassword(false);
     }
@@ -178,6 +185,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     if (isRegistering) {
       // REGISTRATION - Enhanced validation
       setValidationErrors({});
+
+      // Validate Confirm Password
+      if (formData.password !== confirmPassword) {
+        setError('Las contraseñas no coinciden');
+        return;
+      }
+      if (!acceptTerms) {
+        setError('Debes aceptar los términos y condiciones');
+        return;
+      }
       
       // Validate name
       if (!formData.name.trim()) {
@@ -259,10 +276,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           password: formData.password
         });
         
-        setSuccessMessage('¡Cuenta creada exitosamente! Revisa tu email para confirmar tu cuenta. El enlace de confirmación puede tardar unos minutos en llegar.');
+        setSuccessMessage('¡Cuenta creada exitosamente! Te hemos enviado un correo electrónico de confirmación. Por favor, revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el enlace para confirmar tu cuenta. El enlace puede tardar unos minutos en llegar.');
         // Reset form after successful registration
         setTimeout(() => {
           setFormData({ name: '', email: '', password: '', role: 'client' });
+          setConfirmPassword('');
+          setAcceptTerms(false);
           setValidationErrors({});
         }, 2000);
       } catch (err: any) {
@@ -326,7 +345,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm overflow-hidden">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[22rem] relative flex flex-col max-h-[90vh]">
         {/* Close Button - Outside the scrollable area for accessibility */}
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors z-20 bg-white/80">
+        <button onClick={onClose} aria-label="Cerrar" title="Cerrar" className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors z-20 bg-white/80">
           <Icons.Close className="w-5 h-5 text-gray-500" />
         </button>
         
@@ -334,7 +353,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
           <div className="flex flex-col items-center mb-5">
             <div className="mb-3">
-               <img src={logo} alt="CasasEG" className="h-24 w-auto object-contain" />
+                <img src={logo} alt="CasasEG" className="h-10 w-auto object-contain" />
             </div>
             <h1 className="text-xl font-bold text-center text-gray-800">
               {isForgotPassword ? 'Recuperar Cuenta' : isRegistering ? 'Crear Cuenta' : 'Bienvenido de nuevo'}
@@ -436,6 +455,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
                   >
                       {showPassword ? (
@@ -448,6 +469,32 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 {validationErrors.password && (
                   <p className="text-red-500 text-xs mt-1 ml-2">{validationErrors.password}</p>
                 )}
+
+                {/* Confirm Password Field - Moved here and styled like Password */}
+                {isRegistering && (
+                  <div className="animate-fade-in mt-4">
+                    <label className="block text-xs font-bold text-gray-600 ml-2 mb-1 uppercase tracking-wider">Confirmar Contraseña</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        className={`${inputClass} ${validationErrors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                      <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                          title={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      >
+                          {showConfirmPassword ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {isRegistering && (
                   <div className="mt-2 ml-2 text-[10px] text-gray-500">
                     <p className="font-semibold mb-1">Requisitos:</p>
@@ -498,6 +545,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                      </button>
                   </div>
                </div>
+            )}
+
+            {/* Terms Checkbox */}
+            {isRegistering && (
+              <div className="flex items-start mt-4 animate-fade-in ml-2">
+                <div className="flex items-center h-5">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-black/20"
+                  />
+                </div>
+                <label htmlFor="terms" className="ml-2 text-xs font-medium text-gray-500">
+                  Acepto los <Link to="/terms" className="text-black hover:underline" onClick={onClose}>Términos y Condiciones</Link> y la <Link to="/privacy" className="text-black hover:underline" onClick={onClose}>Política de Privacidad</Link>
+                </label>
+              </div>
             )}
 
             {successMessage && (
@@ -563,6 +628,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <button
               type="button"
               disabled={isLoading}
+              aria-label="Continuar con Google"
+              title="Continuar con Google"
               onClick={async () => {
                 try {
                   setError('');
@@ -590,6 +657,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </button>
             <button
               type="button"
+              aria-label="Continuar con Apple"
+              title="Continuar con Apple"
               className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors bg-white font-medium text-gray-700 text-sm"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">

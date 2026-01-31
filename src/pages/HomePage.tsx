@@ -24,7 +24,21 @@ import { useNavigate } from "react-router-dom";
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { currentUser, users, logout } = useAuth();
+  const { currentUser: authUser, users, logout } = useAuth();
+
+  // Corregir el rol del usuario: Supabase devuelve 'authenticated' por defecto en user.role,
+  // pero necesitamos el rol específico (admin, owner, client) que guardamos en user_metadata.
+  const currentUser = React.useMemo(() => {
+    if (!authUser) return null;
+    
+    // Si el rol es 'authenticated', intentamos obtener el rol real de los metadatos
+    if (authUser.role === 'authenticated' && authUser.user_metadata?.role) {
+      return { ...authUser, role: authUser.user_metadata.role };
+    }
+    
+    return authUser;
+  }, [authUser]);
+
   const { properties, deleteProperty, updateProperty, addProperty } =
     useProperties();
   const { messages, sendMessage, addNotification } = useMessaging();
@@ -44,8 +58,19 @@ export function HomePage() {
     index: number;
   } | null>(null);
 
+  // Filtrar propiedades: solo mostrar a clientes y usuarios no autenticados
+  // Admins y propietarios no deben ver propiedades en la pantalla principal
+  const propertiesForClients = React.useMemo(() => {
+    // Si el usuario es admin o propietario, no mostrar propiedades
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'owner')) {
+      return [];
+    }
+    // Clientes y usuarios no autenticados pueden ver todas las propiedades activas
+    return properties.filter(p => p.status === 'active');
+  }, [properties, currentUser]);
+
   const { filters, setFilters, filteredProperties } = usePropertyFilters(
-    properties,
+    propertiesForClients,
     currentUser
   );
   const { currentPage, totalPages, paginatedProperties, handlePageChange } =
@@ -62,11 +87,25 @@ export function HomePage() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Redirigir admins y propietarios a sus dashboards respectivos
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+        navigate('/admin');
+        return;
+      }
+      if (currentUser.role === 'owner') {
+        navigate('/owner');
+        return;
+      }
+    }
+  }, [currentUser, navigate]);
+
   const categories = [
     { name: 'Todas', icon: Icons.Grid },
     { name: 'Apartamentos', icon: Icons.Home },
     { name: 'Villas', icon: Icons.Building },
-    { name: 'Habitaciones', icon: Icons.Bed },
+    { name: 'Habitaciones', icon: Icons.BedHeart },
     { name: 'Lujo', icon: Icons.Sparkles },
     { name: 'Cerca del Mar', icon: Icons.Location },
   ];
@@ -91,6 +130,13 @@ export function HomePage() {
       return;
     }
 
+    // Solo clientes pueden realizar acciones en la pantalla principal
+    // Admins y propietarios deben usar sus dashboards
+    const userRole = currentUser?.role || 'guest';
+    if (userRole === 'admin' || userRole === 'superadmin' || userRole === 'owner') {
+      return; // No permitir acciones a admins/propietarios en la pantalla principal
+    }
+
     switch (action) {
       case "notify":
         showToast(`Te avisaremos cuando "${property.title}" esté libre.`);
@@ -104,6 +150,10 @@ export function HomePage() {
         break;
 
       case "contact":
+        if (!currentUser) {
+          setIsLoginOpen(true);
+          return;
+        }
         if (property.ownerId === currentUser.id) {
           showToast("No puedes enviarte mensajes a ti mismo.");
           return;
@@ -116,8 +166,8 @@ export function HomePage() {
         break;
 
       case "delete":
-        deleteProperty(property.id);
-        showToast("Propiedad eliminada.");
+        // Los clientes no pueden eliminar propiedades
+        showToast("No tienes permisos para eliminar propiedades.");
         break;
 
       case "rate":
@@ -283,10 +333,14 @@ export function HomePage() {
               <Icons.Search className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900">
-              No hay resultados
+              {currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'owner')
+                ? 'Redirigiendo a tu dashboard...'
+                : 'No hay propiedades disponibles'}
             </h3>
             <p className="text-gray-500">
-              Intenta ajustar tus filtros de búsqueda.
+              {currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'owner')
+                ? 'Los administradores y propietarios deben gestionar desde sus dashboards.'
+                : 'Intenta ajustar tus filtros de búsqueda.'}
             </p>
           </div>
         )}

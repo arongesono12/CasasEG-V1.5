@@ -39,10 +39,10 @@ export const EmailConfirmationPage: React.FC = () => {
           if (sessionData?.user) {
             trackUserSession(sessionData.user.id);
             setStatus('success');
-            setMessage('¡Email confirmado exitosamente! Ya formas parte de CasasEG.');
+            setMessage('¡Correo electrónico confirmado exitosamente! Ya formas parte de CasasEG y puedes usar todos los servicios.');
             setTimeout(() => {
               navigate('/');
-            }, 3000);
+            }, 4000);
             return;
           }
         }
@@ -61,29 +61,47 @@ export const EmailConfirmationPage: React.FC = () => {
           if (data?.user) {
             trackUserSession(data.user.id);
             setStatus('success');
-            setMessage('¡Email confirmado exitosamente! Ya formas parte de CasasEG.');
+            setMessage('¡Correo electrónico confirmado exitosamente! Ya formas parte de CasasEG y puedes usar todos los servicios.');
             setTimeout(() => {
               navigate('/');
-            }, 3000);
+            }, 4000);
             return;
           }
         }
 
+        // Check URL parameters for confirmation type
+        const confirmationType = searchParams.get('type') || hashParams.get('type');
+        
         // If no tokens found, check if user is already confirmed
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.email_confirmed_at) {
           trackUserSession(session.user.id);
           setStatus('success');
-          setMessage('¡Tu email ya está confirmado! Ya formas parte de CasasEG.');
+          setMessage('¡Tu correo electrónico ya está confirmado! Ya formas parte de CasasEG y puedes usar todos los servicios.');
           setTimeout(() => {
             navigate('/');
-          }, 3000);
+          }, 4000);
           return;
+        }
+
+        // Check if this is a confirmation link (even without tokens, Supabase might have already processed it)
+        if (confirmationType === 'signup' || window.location.href.includes('type=signup')) {
+          // Try to get the user from the current session
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email_confirmed_at) {
+            trackUserSession(user.id);
+            setStatus('success');
+            setMessage('¡Correo electrónico confirmado exitosamente! Ya formas parte de CasasEG y puedes usar todos los servicios.');
+            setTimeout(() => {
+              navigate('/');
+            }, 4000);
+            return;
+          }
         }
 
         // No valid confirmation found
         setStatus('error');
-        setMessage('No se encontró un token de verificación válido. Por favor, verifica el enlace del email.');
+        setMessage('No se encontró un token de verificación válido. Por favor, verifica el enlace del email o solicita un nuevo enlace de confirmación.');
       } catch (err: any) {
         console.error('Error verifying email:', err);
         setStatus('error');
@@ -112,17 +130,21 @@ export const EmailConfirmationPage: React.FC = () => {
 
           {status === 'success' && (
             <>
-              <div className="bg-green-100 rounded-full p-4 mb-4">
+              <div className="bg-green-100 rounded-full p-4 mb-4 animate-bounce">
                 <Icons.Check className="w-12 h-12 text-green-600" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">¡Bienvenido a CasasEG!</h1>
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                {message.includes('ya está confirmado') 
+                  ? '¡Correo Confirmado!' 
+                  : '¡Bienvenido a CasasEG!'}
+              </h1>
               <p className="text-gray-600 mb-4">{message}</p>
-              <p className="text-sm text-gray-500">Serás redirigido en unos segundos...</p>
+              <p className="text-sm text-gray-500 mb-4">Serás redirigido automáticamente en unos segundos...</p>
               <button
                 onClick={() => navigate('/')}
                 className="mt-4 px-6 py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors"
               >
-                Ir al inicio
+                Ir al inicio ahora
               </button>
             </>
           )}

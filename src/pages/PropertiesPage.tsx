@@ -17,18 +17,41 @@ export function PropertiesPage() {
   const { currentUser, logout } = useAuth();
   const { properties, deleteProperty, updateProperty } = useProperties();
   const { messages, sendMessage, addNotification } = useMessaging();
-  const { filters, setFilters, filteredProperties } = usePropertyFilters(properties, currentUser);
+  
+  // Filtrar propiedades: solo mostrar a clientes y usuarios no autenticados
+  const propertiesForClients = React.useMemo(() => {
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'owner')) {
+      return [];
+    }
+    return properties.filter(p => p.status === 'active');
+  }, [properties, currentUser]);
+  
+  const { filters, setFilters, filteredProperties } = usePropertyFilters(propertiesForClients, currentUser);
   const { showToast, toastMessage } = useToast();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState<ConversationKey | null>(null);
 
+  // Redirigir admins y propietarios a sus dashboards
+  React.useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+        navigate('/admin');
+        return;
+      }
+      if (currentUser.role === 'owner') {
+        navigate('/owner');
+        return;
+      }
+    }
+  }, [currentUser, navigate]);
+
   const categories = [
     { name: 'Todas', icon: Icons.Grid },
     { name: 'Apartamentos', icon: Icons.Home },
     { name: 'Villas', icon: Icons.Building },
-    { name: 'Habitaciones', icon: Icons.Bed },
+    { name: 'Habitaciones', icon: Icons.BedHeart },
     { name: 'Lujo', icon: Icons.Sparkles },
     { name: 'Cerca del Mar', icon: Icons.Location },
   ];
@@ -42,16 +65,25 @@ export function PropertiesPage() {
       setIsLoginOpen(true);
       return;
     }
-    // ... Copy of logic from HomePage roughly, simplified for brevity here
-    // In a real refactor, this handler logic should be in a hook 'usePropertyActions'
+    
+    // Solo clientes pueden realizar acciones en la pantalla principal
+    const userRole = currentUser?.role || 'guest';
+    if (userRole === 'admin' || userRole === 'superadmin' || userRole === 'owner') {
+      return; // No permitir acciones a admins/propietarios
+    }
+    
     switch (action) {
       case "contact":
-        if (property.ownerId === currentUser.id) return;
+        if (property.ownerId === currentUser.id) {
+          showToast("No puedes enviarte mensajes a ti mismo.");
+          return;
+        }
         setActiveConversation({ propertyId: property.id, partnerId: property.ownerId });
         setIsMessagesOpen(true);
         break;
       case "delete":
-        deleteProperty(property.id);
+        // Los clientes no pueden eliminar propiedades
+        showToast("No tienes permisos para eliminar propiedades.");
         break;
     }
   };

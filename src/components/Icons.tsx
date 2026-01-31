@@ -20,6 +20,7 @@ export const Icons = {
   Logout: (props: { className?: string }) => <LineIcon icon="exit" {...props} />,
   Location: (props: { className?: string }) => <LineIcon icon="map-marker" {...props} />,
   Bed: (props: { className?: string }) => <LineIcon icon="bed" {...props} />,
+  BedHeart: (props: { className?: string }) => <LineIcon icon="bed-heart" {...props} />,
   Bath: (props: { className?: string }) => <LineIcon icon="bath" {...props} />,
   Bell: (props: { className?: string }) => <LineIcon icon="bell" {...props} />,
   Admin: (props: { className?: string }) => <LineIcon icon="shield" {...props} />,
@@ -55,6 +56,7 @@ export const Icons = {
   Alert: (props: { className?: string }) => <LineIcon icon="warning" {...props} />,
   Clock: (props: { className?: string }) => <LineIcon icon="clock" {...props} />,
   Refresh: (props: { className?: string }) => <LineIcon icon="reload" {...props} />,
+  Lock: (props: { className?: string }) => <LineIcon icon="lock" {...props} />,
   // Social Media Icons (keeping react-icons for now as they work well)
   Instagram: FaInstagram,
   Twitter: FaTwitter,

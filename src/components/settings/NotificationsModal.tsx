@@ -98,8 +98,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Cerrar notificaciones"
           >
             <Icons.Close className="w-5 h-5 text-gray-400" />
           </button>
@@ -109,6 +111,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setFilter('all')}
               className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
                 filter === 'all'
@@ -119,6 +122,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               Todas
             </button>
             <button
+              type="button"
               onClick={() => setFilter('unread')}
               className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors relative ${
                 filter === 'unread'
@@ -134,6 +138,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               )}
             </button>
             <button
+              type="button"
               onClick={() => setFilter('read')}
               className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
                 filter === 'read'
@@ -204,6 +209,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {!notification.read && (
                         <button
+                          type="button"
                           onClick={() => handleMarkAsRead(notification.id)}
                           className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
                           title="Marcar como leída"
@@ -212,6 +218,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={() => handleDelete(notification.id)}
                         className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
                         title="Eliminar"
@@ -231,6 +238,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           <div className="border-t border-gray-100 p-4 bg-gray-50">
             <div className="flex items-center justify-between">
               <button
+                type="button"
                 onClick={handleMarkAllAsRead}
                 disabled={unreadCount === 0}
                 className="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
@@ -238,6 +246,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                 Marcar todas como leídas
               </button>
               <button
+                type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
               >

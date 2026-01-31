@@ -6,8 +6,17 @@ import { useNavigate } from 'react-router-dom';
 import { Footer } from '../components/layout/Footer';
 
 export const TermsPage: React.FC = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser: authUser, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Corregir el rol del usuario para el Header
+  const currentUser = React.useMemo(() => {
+    if (!authUser) return null;
+    if (authUser.role === 'authenticated' && authUser.user_metadata?.role) {
+      return { ...authUser, role: authUser.user_metadata.role };
+    }
+    return authUser;
+  }, [authUser]);
 
   return (
     <div className="min-h-screen bg-white">

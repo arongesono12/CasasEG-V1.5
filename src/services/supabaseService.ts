@@ -134,6 +134,7 @@ export const signUpWithEmail = async (
   password: string,
   metadata: any,
 ) => {
+  // URL de redirección después de confirmar el email
   const redirectTo = `${window.location.origin}/auth/confirm`;
   const { data, error } = await supabase.auth.signUp({
     email: email.toLowerCase().trim(),
@@ -141,6 +142,7 @@ export const signUpWithEmail = async (
     options: {
       data: metadata, // stored in user_metadata
       emailRedirectTo: redirectTo, // Redirect to confirmation page after email verification
+      // Asegurar que se envíe el email de confirmación
     },
   });
   

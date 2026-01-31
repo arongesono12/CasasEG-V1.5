@@ -341,6 +341,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <option value="USD">USD ($)</option>
                       <option value="GBP">GBP (£)</option>
                       <option value="MXN">MXN ($)</option>
+                      <option value="FCA">FCA (Franco CFA de África Central)</option>
                     </select>
                   </div>
                 </div>
